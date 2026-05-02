@@ -440,6 +440,19 @@ body.view-mode tr:hover td{cursor:default}
         <div class="fg"><label class="fl">시/도</label><input type="text" id="m-region"></div>
       <div class="fg"><label class="fl">구/군</label><input type="text" id="m-gu" placeholder="서구, 미추홀구..."></div>
         <div class="fg"><label class="fl">기관명</label><input type="text" id="m-agency"></div>
+        <div class="fg"><label class="fl">보고용 지역 <span style="color:var(--hint);font-weight:400">(직접대여 보고서 기준)</span></label>
+          <select id="m-report-region">
+            <option value="">선택 안함</option>
+          <option value="인천 서구">인천 서구</option>
+          <option value="인천 부평구">인천 부평구</option>
+          <option value="인천 미추홀구">인천 미추홀구</option>
+          <option value="인천 중구">인천 중구</option>
+          <option value="인천 기타">인천 기타</option>
+          <option value="인천 외">인천 외</option>
+          <option value="어울마당">어울마당</option>
+          <option value="리하원">리하원</option>
+          </select>
+        </div>
       </div>
     </div>
     <!-- 대대여 필드 -->
@@ -491,7 +504,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbwHlTJSWurLuomrtNfbSI9aAsD6e-GbFQK9YnELckHxqLwcLsoqSb1ckiyYILVzYl_B/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbxOnH_bU1PVqsC1v4Jg71NTWLdXHPSVMiCUmtzA6_tmapIUp86OA41JK0biKPoBpwwQoQ/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -931,6 +944,7 @@ function openModal(num){
   document.getElementById('m-region').value=b.region||'';
   const guEl=document.getElementById('m-gu'); if(guEl) guEl.value=b.gu||'';
   document.getElementById('m-agency').value=b.agency||'';
+  const rrEl=document.getElementById('m-report-region'); if(rrEl) rrEl.value=b.reportRegion||'';
   document.getElementById('m-dd-renter').value=b.renter||'';
   document.getElementById('m-dd-agency').value=b.daedaeAgency||b.agency||'';
   // 보관 거점 버튼 처리
@@ -985,6 +999,7 @@ async function saveBed(){
     b.region=document.getElementById('m-region').value.trim();
     b.gu=(document.getElementById('m-gu')||{value:''}).value.trim();
     b.agency=document.getElementById('m-agency').value.trim();
+    b.reportRegion=(document.getElementById('m-report-region')||{value:''}).value||'';
     b.location=b.region||'미기재';
     b.daedaeAgency=''; // 대대여 잔여 데이터 초기화
   } else if(b.status==='대대여'){
@@ -1240,7 +1255,7 @@ function renderReport(){
           date: b.installDate, _week: wn,
           bedNum: b.num, barcode: b.barcode||'',
           renter: b.renter||'', agency: b.agency||'',
-          daedaeAgency: b.daedaeAgency||'',
+          daedaeAgency: b.daedaeAgency||'', reportRegion: b.reportRegion||'',
           fromStatus:'보관', toStatus: toSt
         });
       }
@@ -1255,7 +1270,7 @@ function renderReport(){
           date: b.returnDate, _week: wn,
           bedNum: b.num, barcode: b.barcode||'',
           renter: b.renter||'', agency: b.agency||'',
-          daedaeAgency: b.daedaeAgency||'',
+          daedaeAgency: b.daedaeAgency||'', reportRegion: b.reportRegion||'',
           fromStatus: fromSt, toStatus:'보관'
         });
       }
@@ -1268,7 +1283,7 @@ function renderReport(){
 
   // 구분 정의 (대대여: fromStatus OR toStatus 가 대대여면 포함)
   const groups = [
-    {name:'직접대여',   match: e=>e.toStatus==='대여'||e.fromStatus==='대여',          keyFn: e=>e.agency||e.renter||'기타'},
+    {name:'직접대여',   match: e=>e.toStatus==='대여'||e.fromStatus==='대여',          keyFn: e=>e.reportRegion||'(지역 미지정)'},
     {name:'수수료대여', match: e=>e.toStatus==='수수료대여'||e.fromStatus==='수수료대여', keyFn: e=>e.agency||e.renter||'기타'},
     {name:'대대여',     match: e=>e.toStatus==='대대여'||e.fromStatus==='대대여',         keyFn: e=>e.daedaeAgency||e.agency||'기타'},
     {name:'일반대여',   match: e=>e.toStatus==='일반대여'||e.fromStatus==='일반대여',     keyFn: e=>e.agency||'일반대여'},
