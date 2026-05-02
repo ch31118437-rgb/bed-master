@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터</div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.5.1</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -467,8 +467,8 @@ body.view-mode tr:hover td{cursor:default}
     <div class="divider"></div>
     <div class="section-label">📅 날짜 기록</div>
     <div class="form-grid" style="margin-bottom:12px">
-      <div class="fg"><label class="fl">설치일</label><input type="date" id="m-install-date"></div>
-      <div class="fg"><label class="fl">회수일 <span style="color:var(--hint);font-weight:400">(회수 시 입력)</span></label><input type="date" id="m-return-date"></div>
+      <div class="fg"><label class="fl">설치일 <button type="button" onclick="document.getElementById('m-install-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="m-install-date"></div>
+      <div class="fg"><label class="fl">회수일 <button type="button" onclick="document.getElementById('m-return-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button> <span style="color:var(--hint);font-weight:400">(회수 시 입력)</span></label><input type="date" id="m-return-date"></div>
     </div>
     <div id="m-days-info" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;margin-top:8px">
