@@ -367,6 +367,48 @@ body.view-mode tr:hover td{cursor:default}
   </div>
 
 
+
+<!-- 이력 추가/수정 모달 -->
+<div id="history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:3000;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border-radius:var(--r);padding:28px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:20px">📋 설치/회수 이력</div>
+    <div class="form-grid">
+      <div class="fg"><label class="fl">침대번호</label><input type="number" id="hm-bednum" placeholder="예: 137" oninput="onHistoryBedNumChange()"></div>
+      <div class="fg"><label class="fl">바코드</label><input type="text" id="hm-barcode"></div>
+      <div class="fg"><label class="fl">구분</label>
+        <select id="hm-status">
+          <option value="대여">대여</option>
+          <option value="수수료대여">수수료대여</option>
+          <option value="대대여">대대여</option>
+          <option value="일반대여">일반대여</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">대여자</label><input type="text" id="hm-renter"></div>
+      <div class="fg"><label class="fl">기관명</label><input type="text" id="hm-agency"></div>
+      <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="hm-daedae"></div>
+      <div class="fg"><label class="fl">보고용 지역</label>
+        <select id="hm-rregion">
+          <option value="">선택 안함</option>
+            <option value="인천 서구">인천 서구</option>
+            <option value="인천 부평구">인천 부평구</option>
+            <option value="인천 미추홀구">인천 미추홀구</option>
+            <option value="인천 중구">인천 중구</option>
+            <option value="인천 기타">인천 기타</option>
+            <option value="인천 외">인천 외</option>
+            <option value="어울마당">어울마당</option>
+            <option value="리하원">리하원</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">설치일 *</label><input type="date" id="hm-install"></div>
+      <div class="fg"><label class="fl">회수일</label><input type="date" id="hm-return"></div>
+      <div class="fg" style="grid-column:1/-1"><label class="fl">메모</label><input type="text" id="hm-memo" placeholder="참고사항"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">
+      <button class="btn btn-s" onclick="closeHistoryModal()">취소</button>
+      <button class="btn btn-p" onclick="saveHistory()">저장</button>
+    </div>
+  </div>
+</div>
   <!-- 보고서 -->
   <div id="report" class="section">
     <div class="ph"><div class="pt">주간/월간 보고서</div><div class="ps">기간을 선택하면 설치/회수 현황이 자동 집계됩니다</div></div>
@@ -389,6 +431,23 @@ body.view-mode tr:hover td{cursor:default}
       </div>
     </div>
     <div id="report-body"></div>
+
+    <!-- 이력 관리 -->
+    <div class="card" style="margin-top:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-weight:700;font-size:15px">📋 설치/회수 이력 관리</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="hist-filter-bed" placeholder="침대번호/바코드/대여자 검색" style="width:200px" oninput="renderHistory()">
+          <button class="btn btn-p" onclick="openHistoryModal()">+ 이력 추가</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="rpt-table">
+          <thead><tr><th>침대</th><th>바코드</th><th>구분</th><th>대여자/거래처</th><th>보고용지역</th><th>설치일</th><th>회수일</th><th>메모</th><th>관리</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
 </main>
@@ -504,7 +563,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbxOnH_bU1PVqsC1v4Jg71NTWLdXHPSVMiCUmtzA6_tmapIUp86OA41JK0biKPoBpwwQoQ/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbzrVtgFsV45vAhMB5ApJVNWibKc_7-pVpaDIlR69sttwfOyHXvZ3_1ubbGKHWtunRcv0A/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -542,7 +601,10 @@ async function loadBeds(){
     if(data && data.beds && data.beds.length > 0){
       beds = data.beds.map((b,i)=>({...b, num: b.num||i+1}));
     }
-    // 시트 비어있거나 실패해도 절대 시트에 다시 쓰지 않음
+    // 이력도 같이 불러오기
+    const res2 = await fetch(sheetUrl + '?action=getHistory', {cache:'no-store'});
+    const data2 = await res2.json();
+    if(data2 && data2.history) history = data2.history;
   } catch(e){
     console.error('불러오기 실패', e);
   }
@@ -559,7 +621,7 @@ function switchTab(tab){
   if(tab==='dashboard') renderDashboard();
   if(tab==='list'){populateFilters();renderList();}
   if(tab==='log'){renderLog();loadLogSheetUrl();}
-  if(tab==='report'){renderReport();}
+  if(tab==='report'){renderReport(); renderHistory();}
 }
 
 // ── 배지 ──
@@ -1026,6 +1088,41 @@ async function saveBed(){
   b.totalRentDays = calcTotalRentDays(b);
   b.storageDays   = calcStorageDays(b);
 
+  // 이력 자동 추가 (상태 변경 시)
+  const RENT_H = ['대여','수수료대여','일반대여','대대여'];
+  if(oldBed.status !== b.status){
+    // 보관→대여: 설치 이력
+    if(!RENT_H.includes(oldBed.status) && RENT_H.includes(b.status)){
+      if(b.installDate){
+        await addHistory({
+          bedNum: b.num, barcode: b.barcode||'',
+          status: b.status, renter: b.renter||'',
+          agency: b.agency||'', daedaeAgency: b.daedaeAgency||'',
+          reportRegion: b.reportRegion||'',
+          installDate: b.installDate, returnDate: ''
+        });
+      }
+    }
+    // 대여→보관: 최근 미완료 이력에 회수일 업데이트
+    if(RENT_H.includes(oldBed.status) && !RENT_H.includes(b.status)){
+      if(b.returnDate){
+        const recent = history.filter(h=>h.bedNum===b.num && !h.returnDate).pop();
+        if(recent){
+          recent.returnDate = b.returnDate;
+          await syncHistoryToSheet();
+        } else if(b.installDate){
+          await addHistory({
+            bedNum: b.num, barcode: b.barcode||'',
+            status: oldBed.status, renter: oldBed.renter||'',
+            agency: oldBed.agency||'', daedaeAgency: oldBed.daedaeAgency||'',
+            reportRegion: oldBed.reportRegion||'',
+            installDate: b.installDate||'', returnDate: b.returnDate
+          });
+        }
+      }
+    }
+  }
+
   // 로그 기록 (fromStatus, toStatus 포함)
   const changeDesc=buildChangeDesc(oldBed,b);
   addLog('edit',b,changeDesc,oldBed.status,b.status);
@@ -1063,6 +1160,7 @@ function exportCSV(){
 // ── 로그 시스템 ──────────────────────────────────────────
 const LOG_KEY='bed_log_v1';
 let logs=[];
+let history=[]; // 설치회수이력
 
 
 function loadLogs(){
@@ -1239,37 +1337,33 @@ function renderReport(){
   const isInstall = l => !RENT.includes(l.fromStatus) && RENT.includes(l.toStatus);
   const isReturn  = l => RENT.includes(l.fromStatus) && !RENT.includes(l.toStatus);
 
-  // 해당 월 귀속 이벤트 수집 — beds의 installDate/returnDate 기반 (구글 시트 저장값)
+  // 이력 기반 이벤트 수집
   const events = [];
 
-  beds.forEach(b=>{
-    const RENT = ['대여','수수료대여','일반대여','대대여'];
-    // 설치 이벤트: fromStatus=보관, toStatus=현재상태 (단, 현재 보관이면 직전 대여상태 알 수 없으므로 대여로 고정)
-    if(b.installDate){
-      const wn = getWeekNumber(b.installDate, year, month);
+  history.forEach(h=>{
+    // 설치 이벤트
+    if(h.installDate){
+      const wn = getWeekNumber(h.installDate, year, month);
       if(wn >= 1 && wn <= 5){
-        const toSt = RENT.includes(b.status) ? b.status : (b.daedaeAgency ? '대대여' : '대여');
         events.push({
-          date: b.installDate, _week: wn,
-          bedNum: b.num, barcode: b.barcode||'',
-          renter: b.renter||'', agency: b.agency||'',
-          daedaeAgency: b.daedaeAgency||'', reportRegion: b.reportRegion||'',
-          fromStatus:'보관', toStatus: toSt
+          date: h.installDate, _week: wn,
+          bedNum: h.bedNum, barcode: h.barcode||'',
+          renter: h.renter||'', agency: h.agency||'',
+          daedaeAgency: h.daedaeAgency||'', reportRegion: h.reportRegion||'',
+          fromStatus:'보관', toStatus: h.status||'대여'
         });
       }
     }
-    // 회수 이벤트: fromStatus=대여계열(고정), toStatus=보관
-    if(b.returnDate){
-      const wn = getWeekNumber(b.returnDate, year, month);
+    // 회수 이벤트
+    if(h.returnDate){
+      const wn = getWeekNumber(h.returnDate, year, month);
       if(wn >= 1 && wn <= 5){
-        // 회수됐으면 이미 보관 → fromStatus는 daedaeAgency 있으면 대대여, 아니면 대여
-        const fromSt = b.prevStatus || (b.daedaeAgency ? '대대여' : (b.status==='수수료대여'||b.status==='일반대여' ? b.status : '대여'));
         events.push({
-          date: b.returnDate, _week: wn,
-          bedNum: b.num, barcode: b.barcode||'',
-          renter: b.renter||'', agency: b.agency||'',
-          daedaeAgency: b.daedaeAgency||'', reportRegion: b.reportRegion||'',
-          fromStatus: fromSt, toStatus:'보관'
+          date: h.returnDate, _week: wn,
+          bedNum: h.bedNum, barcode: h.barcode||'',
+          renter: h.renter||'', agency: h.agency||'',
+          daedaeAgency: h.daedaeAgency||'', reportRegion: h.reportRegion||'',
+          fromStatus: h.status||'대여', toStatus:'보관'
         });
       }
     }
@@ -1455,6 +1549,144 @@ function updateDaysInfo(b){
   }
 
   el.innerHTML = parts.length ? parts.join(' &nbsp;|&nbsp; ') : '';
+}
+
+
+// ── 설치회수이력 ──────────────────────────────────────────
+async function addHistory(entry){
+  const h = {
+    id: Date.now(),
+    bedNum: entry.bedNum,
+    barcode: entry.barcode||'',
+    status: entry.status||'',
+    renter: entry.renter||'',
+    agency: entry.agency||'',
+    daedaeAgency: entry.daedaeAgency||'',
+    reportRegion: entry.reportRegion||'',
+    installDate: entry.installDate||'',
+    returnDate: entry.returnDate||'',
+    memo: entry.memo||''
+  };
+  history.push(h);
+  await syncHistoryToSheet();
+  if(document.getElementById('history-body')) renderHistory();
+}
+
+async function syncHistoryToSheet(){
+  if(!sheetUrl) return;
+  try{
+    await fetch(sheetUrl, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({action:'syncHistory', history})
+    });
+  } catch(e){ console.error('이력 저장 실패', e); }
+}
+
+async function deleteHistory(id){
+  if(!confirm('이 이력을 삭제하시겠습니까?')) return;
+  history = history.filter(h=>h.id!==id);
+  await syncHistoryToSheet();
+  renderHistory();
+  if(document.getElementById('report-body').innerHTML) renderReport();
+}
+
+let editingHistoryId = null;
+
+function openHistoryModal(h=null){
+  editingHistoryId = h ? h.id : null;
+  const m = document.getElementById('history-modal');
+  m.style.display='flex';
+  document.getElementById('hm-bednum').value   = h ? h.bedNum : '';
+  document.getElementById('hm-barcode').value  = h ? (h.barcode||'') : '';
+  document.getElementById('hm-status').value   = h ? (h.status||'대여') : '대여';
+  document.getElementById('hm-renter').value   = h ? (h.renter||'') : '';
+  document.getElementById('hm-agency').value   = h ? (h.agency||'') : '';
+  document.getElementById('hm-daedae').value   = h ? (h.daedaeAgency||'') : '';
+  document.getElementById('hm-rregion').value  = h ? (h.reportRegion||'') : '';
+  document.getElementById('hm-install').value  = h ? (h.installDate||'') : '';
+  document.getElementById('hm-return').value   = h ? (h.returnDate||'') : '';
+  document.getElementById('hm-memo').value     = h ? (h.memo||'') : '';
+  // 침대번호로 자동완성
+  if(h) onHistoryBedNumChange(h.bedNum);
+}
+
+function onHistoryBedNumChange(val){
+  const num = parseInt(val||document.getElementById('hm-bednum').value);
+  const b = beds.find(x=>x.num===num);
+  if(!b) return;
+  if(!document.getElementById('hm-barcode').value) document.getElementById('hm-barcode').value=b.barcode||'';
+  if(!document.getElementById('hm-renter').value)  document.getElementById('hm-renter').value=b.renter||'';
+  if(!document.getElementById('hm-agency').value)  document.getElementById('hm-agency').value=b.agency||'';
+  if(!document.getElementById('hm-daedae').value)  document.getElementById('hm-daedae').value=b.daedaeAgency||'';
+  if(!document.getElementById('hm-rregion').value) document.getElementById('hm-rregion').value=b.reportRegion||'';
+  document.getElementById('hm-status').value=b.status||'대여';
+}
+
+function closeHistoryModal(){
+  document.getElementById('history-modal').style.display='none';
+  editingHistoryId=null;
+}
+
+async function saveHistory(){
+  const bedNum = parseInt(document.getElementById('hm-bednum').value);
+  if(!bedNum){ showToast('침대번호를 입력해주세요'); return; }
+  const installDate = document.getElementById('hm-install').value;
+  if(!installDate){ showToast('설치일을 입력해주세요'); return; }
+
+  const entry = {
+    id: editingHistoryId || Date.now(),
+    bedNum,
+    barcode:      document.getElementById('hm-barcode').value,
+    status:       document.getElementById('hm-status').value,
+    renter:       document.getElementById('hm-renter').value,
+    agency:       document.getElementById('hm-agency').value,
+    daedaeAgency: document.getElementById('hm-daedae').value,
+    reportRegion: document.getElementById('hm-rregion').value,
+    installDate,
+    returnDate:   document.getElementById('hm-return').value,
+    memo:         document.getElementById('hm-memo').value,
+  };
+
+  if(editingHistoryId){
+    const idx = history.findIndex(h=>h.id===editingHistoryId);
+    if(idx>=0) history[idx]=entry;
+  } else {
+    history.push(entry);
+  }
+
+  await syncHistoryToSheet();
+  closeHistoryModal();
+  renderHistory();
+  if(document.getElementById('report-body').innerHTML) renderReport();
+  showToast(editingHistoryId ? '이력 수정 완료' : '이력 추가 완료');
+}
+
+function renderHistory(){
+  const tbody = document.getElementById('history-body');
+  if(!tbody) return;
+  const filter = document.getElementById('hist-filter-bed').value.toLowerCase();
+  let rows = [...history].sort((a,b)=>(b.installDate||'').localeCompare(a.installDate||''));
+  if(filter) rows = rows.filter(h=>String(h.bedNum).includes(filter)||h.barcode.toLowerCase().includes(filter)||h.renter.toLowerCase().includes(filter));
+  if(rows.length===0){
+    tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--hint);padding:24px">이력이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(h=>`
+    <tr>
+      <td>#${String(h.bedNum).padStart(3,'0')}</td>
+      <td style="font-size:11px">${h.barcode||'-'}</td>
+      <td><span class="badge ${h.status==='대여'?'rent':h.status==='수수료대여'?'fee':h.status==='대대여'?'dd':''}">${h.status||'-'}</span></td>
+      <td>${h.renter||h.daedaeAgency||'-'}</td>
+      <td>${h.reportRegion||'-'}</td>
+      <td>${h.installDate||'-'}</td>
+      <td>${h.returnDate||'<span style="color:var(--accent)">대여중</span>'}</td>
+      <td>${h.memo||''}</td>
+      <td>
+        <button class="btn btn-s" style="padding:2px 8px;font-size:11px" onclick="openHistoryModal(history.find(x=>x.id===${h.id}))">수정</button>
+        <button class="btn" style="padding:2px 8px;font-size:11px;color:var(--warn);border-color:transparent;background:none" onclick="deleteHistory(${h.id})">삭제</button>
+      </td>
+    </tr>
+  `).join('');
 }
 
 function showToast(msg){
