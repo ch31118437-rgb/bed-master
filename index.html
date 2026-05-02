@@ -1002,10 +1002,9 @@ async function saveBed(){
   // ── 날짜 처리 (수동 입력만 반영) ──
   const instDateVal = document.getElementById('m-install-date').value;
   const retDateVal  = document.getElementById('m-return-date').value;
-  // 입력된 값만 저장, 비어있으면 기존 값 유지 (자동 세팅 없음)
-  // 날짜 필드: 값 있으면 저장, 비워서 저장하면 삭제
-  b.installDate = instDateVal !== undefined ? instDateVal : (b.installDate||'');
-  b.returnDate  = retDateVal  !== undefined ? retDateVal  : (b.returnDate ||'');
+  // 필드값 그대로 저장 (빈값이면 빈값으로 — 삭제 가능)
+  b.installDate = instDateVal;
+  b.returnDate  = retDateVal;
 
   // 대여일수/보관일수 계산
   b.totalRentDays = calcTotalRentDays(b);
