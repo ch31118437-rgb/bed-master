@@ -1201,34 +1201,32 @@ function initReportDates(){
   document.getElementById('rpt-month').value = today.getMonth()+1;
 }
 
-// 목~수 기준 주차 계산 (목요일=1주 시작)
-// 해당 월의 첫 번째 목요일을 1주 시작으로 삼음
-function getWeekLabel(dateStr, year, month){
+// 목~수 기준 주차 계산
+// 월 귀속 기준: 수요일(주 마지막날)이 속한 월
+function getWednesday(dateStr){
+  // 해당 날짜가 속한 주의 수요일 반환
   const d = new Date(dateStr);
-  // 목요일 기준: 0=일,1=월,2=화,3=수,4=목,5=금,6=토
-  // 목~수를 한 주로: 목요일을 기준으로 offset 계산
-  const dow = d.getDay(); // 0=일...6=토
-  // 해당 날짜가 속하는 "목요일" 찾기 (목=0, 금=1, 토=2, 일=3, 월=4, 화=5, 수=6)
-  const offsetToThursday = dow === 4 ? 0 : dow === 5 ? -1 : dow === 6 ? -2 : dow === 0 ? -3 : dow === 1 ? -4 : dow === 2 ? -5 : -6;
-  // 해당 주의 목요일
-  const thursday = new Date(d);
-  thursday.setDate(d.getDate() + offsetToThursday);
-  // 이 목요일이 어느 월에 속하는지 → 월 귀속 기준
-  return thursday;
+  const dow = d.getDay(); // 0=일,1=월,2=화,3=수,4=목,5=금,6=토
+  // 목~수 한 주: 수요일까지 offset
+  // 목=+6, 금=+5, 토=+4, 일=+3, 월=+2, 화=+1, 수=0
+  const offsetToWed = dow === 3 ? 0 : dow === 4 ? 6 : dow === 5 ? 5 : dow === 6 ? 4 : dow === 0 ? 3 : dow === 1 ? 2 : 1;
+  const wednesday = new Date(d);
+  wednesday.setDate(d.getDate() + offsetToWed);
+  return wednesday;
 }
 
-// 해당 월 기준 주차 번호 반환 (목요일 날짜 기준)
+// 해당 월 기준 주차 번호 반환 (수요일 날짜 기준으로 월 귀속)
 function getWeekNumber(dateStr, year, month){
-  const thursday = getWeekLabel(dateStr, year, month);
-  // 목요일의 월이 다르면 해당 월 아님
-  if(thursday.getMonth()+1 !== month || thursday.getFullYear() !== year) return 0;
-  
-  // 해당 월 첫번째 목요일 찾기
+  const wednesday = getWednesday(dateStr);
+  // 수요일의 월이 다르면 해당 월 아님
+  if(wednesday.getMonth()+1 !== month || wednesday.getFullYear() !== year) return 0;
+
+  // 해당 월 첫번째 수요일 찾기 → 1주차 기준
   const firstOfMonth = new Date(year, month-1, 1);
-  let firstThursday = new Date(firstOfMonth);
-  while(firstThursday.getDay() !== 4) firstThursday.setDate(firstThursday.getDate()+1);
-  
-  const diff = Math.floor((thursday - firstThursday) / 86400000);
+  let firstWednesday = new Date(firstOfMonth);
+  while(firstWednesday.getDay() !== 3) firstWednesday.setDate(firstWednesday.getDate()+1);
+
+  const diff = Math.floor((wednesday - firstWednesday) / 86400000);
   return Math.floor(diff/7) + 1;
 }
 
@@ -1304,16 +1302,21 @@ function renderReport(){
   const firstOfMonth = new Date(year, month-1, 1);
   let firstThu = new Date(firstOfMonth);
   while(firstThu.getDay() !== 4) firstThu.setDate(firstThu.getDate()+1);
-  // 해당 월에 하루라도 겹치는 주차만 표시
+  // 해당 월 첫번째 수요일 찾기 (1주차 수요일)
+  const firstOfMonth2 = new Date(year, month-1, 1);
+  let firstWed = new Date(firstOfMonth2);
+  while(firstWed.getDay() !== 3) firstWed.setDate(firstWed.getDate()+1);
+
+  // 주차 라벨: 목요일~수요일
   const weekLabels = [1,2,3,4,5].map(w=>{
-    const thu = new Date(firstThu); thu.setDate(firstThu.getDate()+(w-1)*7);
-    const wed = new Date(thu); wed.setDate(thu.getDate()+6);
-    return `${thu.getMonth()+1}/${thu.getDate()}~${wed.getMonth()+1}/${wed.getDate()}`;
+    const wed = new Date(firstWed); wed.setDate(firstWed.getDate()+(w-1)*7);
+    const thu = new Date(wed); thu.setDate(wed.getDate()-6);
+    return ;
   });
-  // 유효한 주차: 목요일이 해당 월인 것만
+  // 유효한 주차: 수요일이 해당 월인 것만
   const validWeeks = [1,2,3,4,5].filter(w=>{
-    const thu = new Date(firstThu); thu.setDate(firstThu.getDate()+(w-1)*7);
-    return thu.getMonth()+1 === month && thu.getFullYear() === year;
+    const wed = new Date(firstWed); wed.setDate(firstWed.getDate()+(w-1)*7);
+    return wed.getMonth()+1 === month && wed.getFullYear() === year;
   });
 
   let html = `
