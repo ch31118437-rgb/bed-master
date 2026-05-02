@@ -388,6 +388,7 @@ body.view-mode tr:hover td{cursor:default}
           <option value="수수료대여">수수료대여</option>
           <option value="대대여">대대여</option>
           <option value="일반대여">일반대여</option>
+          <option value="보관">보관</option>
         </select>
       </div>
       <div class="fg"><label class="fl">대여자</label><input type="text" id="hm-renter"></div>
@@ -1270,37 +1271,34 @@ async function saveBed(){
   b.totalRentDays = calcTotalRentDays(b);
   b.storageDays   = calcStorageDays(b);
 
-  // 이력 자동 추가 (상태 변경 시)
+  // 이력 자동 추가 (상태 변경 시 — 날짜 없어도 추가)
   const RENT_H = ['대여','수수료대여','일반대여','대대여'];
+  console.log('상태 변경 체크:', oldBed.status, '->', b.status);
   if(oldBed.status !== b.status){
     // 보관→대여: 설치 이력
     if(!RENT_H.includes(oldBed.status) && RENT_H.includes(b.status)){
-      if(b.installDate){
+      await addHistory({
+        bedNum: b.num, barcode: b.barcode||'',
+        status: b.status, renter: b.renter||'',
+        agency: b.agency||'', daedaeAgency: b.daedaeAgency||'',
+        reportRegion: b.reportRegion||'',
+        installDate: b.installDate||'', returnDate: ''
+      });
+    }
+    // 대여→보관: 미완료 이력에 회수일 업데이트, 없으면 새로 추가
+    if(RENT_H.includes(oldBed.status) && !RENT_H.includes(b.status)){
+      const recent = history.filter(h=>h.bedNum===b.num && !h.returnDate).pop();
+      if(recent){
+        recent.returnDate = b.returnDate||'';
+        await syncHistoryToSheet();
+      } else {
         await addHistory({
           bedNum: b.num, barcode: b.barcode||'',
-          status: b.status, renter: b.renter||'',
-          agency: b.agency||'', daedaeAgency: b.daedaeAgency||'',
-          reportRegion: b.reportRegion||'',
-          installDate: b.installDate, returnDate: ''
+          status: oldBed.status, renter: oldBed.renter||'',
+          agency: oldBed.agency||'', daedaeAgency: oldBed.daedaeAgency||'',
+          reportRegion: oldBed.reportRegion||'',
+          installDate: b.installDate||'', returnDate: b.returnDate||''
         });
-      }
-    }
-    // 대여→보관: 최근 미완료 이력에 회수일 업데이트
-    if(RENT_H.includes(oldBed.status) && !RENT_H.includes(b.status)){
-      if(b.returnDate){
-        const recent = history.filter(h=>h.bedNum===b.num && !h.returnDate).pop();
-        if(recent){
-          recent.returnDate = b.returnDate;
-          await syncHistoryToSheet();
-        } else if(b.installDate){
-          await addHistory({
-            bedNum: b.num, barcode: b.barcode||'',
-            status: oldBed.status, renter: oldBed.renter||'',
-            agency: oldBed.agency||'', daedaeAgency: oldBed.daedaeAgency||'',
-            reportRegion: oldBed.reportRegion||'',
-            installDate: b.installDate||'', returnDate: b.returnDate
-          });
-        }
       }
     }
   }
