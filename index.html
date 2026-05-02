@@ -491,7 +491,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbx9WhWM9XEWzRfGgqsqyjhbtgDthMu3WBQX4KE5S1UKWybkOA9G10c-ZqTyPcF3KAPSQQ/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbwHlTJSWurLuomrtNfbSI9aAsD6e-GbFQK9YnELckHxqLwcLsoqSb1ckiyYILVzYl_B/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -968,6 +968,7 @@ async function saveBed(){
   const b=beds.find(x=>x.num===editId);
   if(!b) return;
   const oldBed={...b}; // 변경 전 스냅샷
+  const RENT_ST = ["대여","수수료대여","일반대여","대대여"];
   b.status=document.getElementById('m-status').value;
   let inst=document.getElementById('m-installer').value.trim();
   if(!inst) inst=(document.getElementById('m-other-installer').value||'').trim();
@@ -1229,29 +1230,33 @@ function renderReport(){
   const events = [];
 
   beds.forEach(b=>{
-    // 설치 이벤트
+    const RENT = ['대여','수수료대여','일반대여','대대여'];
+    // 설치 이벤트: fromStatus=보관, toStatus=현재상태 (단, 현재 보관이면 직전 대여상태 알 수 없으므로 대여로 고정)
     if(b.installDate){
       const wn = getWeekNumber(b.installDate, year, month);
       if(wn >= 1 && wn <= 5){
+        const toSt = RENT.includes(b.status) ? b.status : (b.daedaeAgency ? '대대여' : '대여');
         events.push({
           date: b.installDate, _week: wn,
           bedNum: b.num, barcode: b.barcode||'',
           renter: b.renter||'', agency: b.agency||'',
           daedaeAgency: b.daedaeAgency||'',
-          status: b.status, fromStatus:'보관', toStatus: b.status
+          fromStatus:'보관', toStatus: toSt
         });
       }
     }
-    // 회수 이벤트
+    // 회수 이벤트: fromStatus=대여계열(고정), toStatus=보관
     if(b.returnDate){
       const wn = getWeekNumber(b.returnDate, year, month);
       if(wn >= 1 && wn <= 5){
+        // 회수됐으면 이미 보관 → fromStatus는 daedaeAgency 있으면 대대여, 아니면 대여
+        const fromSt = b.prevStatus || (b.daedaeAgency ? '대대여' : (b.status==='수수료대여'||b.status==='일반대여' ? b.status : '대여'));
         events.push({
           date: b.returnDate, _week: wn,
           bedNum: b.num, barcode: b.barcode||'',
           renter: b.renter||'', agency: b.agency||'',
           daedaeAgency: b.daedaeAgency||'',
-          status:'보관', fromStatus: b.status, toStatus:'보관'
+          fromStatus: fromSt, toStatus:'보관'
         });
       }
     }
