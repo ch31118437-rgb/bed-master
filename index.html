@@ -455,7 +455,7 @@ body.view-mode tr:hover td{cursor:default}
 
 
   <!-- 휠체어 목록 -->
-  <div id="wc-list" class="section" style="display:none">
+  <div id="wc-list" class="section">
     <div class="ph"><div class="pt">휠체어 목록</div><div class="ps">휠체어 클릭 → 상세보기 및 수정</div></div>
     <div class="card">
       <div class="filter-bar">
@@ -499,7 +499,7 @@ body.view-mode tr:hover td{cursor:default}
   </div>
 
   <!-- 휠체어 추가 -->
-  <div id="wc-add" class="section" style="display:none">
+  <div id="wc-add" class="section">
     <div class="ph"><div class="pt">휠체어 추가</div><div class="ps">새 휠체어를 등록합니다</div></div>
     <div class="card">
       <div class="form-grid">
@@ -757,7 +757,8 @@ document.getElementById('dash-date').textContent=new Date().toLocaleDateString('
 function switchTab(tab){
   document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add'][i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.getElementById(tab).classList.add('active');
+  const tabEl = document.getElementById(tab);
+  if(tabEl) tabEl.classList.add('active'); else console.error('탭 없음:', tab);
   if(tab==='dashboard') renderDashboard();
   if(tab==='list'){populateFilters();renderList();}
   if(tab==='log'){renderLog();loadLogSheetUrl();}
