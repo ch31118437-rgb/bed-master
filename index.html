@@ -1794,7 +1794,7 @@ async function saveHistory(){
   const bedNum = parseInt(document.getElementById('hm-bednum').value);
   if(!bedNum){ showToast('침대번호를 입력해주세요'); return; }
   const installDate = document.getElementById('hm-install').value;
-  if(!installDate){ showToast('설치일을 입력해주세요'); return; }
+  // 설치일 없어도 저장 가능
 
   const entry = {
     id: editingHistoryId || Date.now(),
