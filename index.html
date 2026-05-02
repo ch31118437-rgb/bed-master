@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.5.1</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.6.0</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -1438,7 +1438,7 @@ function renderReport(){
 
     if(keys.length===0){
       html+=`<tr><td class="rpt-group" colspan="2">${g.name}</td>`;
-      [1,2,3,4,5].forEach(()=>html+='<td>-</td><td>-</td>');
+      validWeeks.forEach(()=>html+='<td>-</td><td>-</td>');
       html+=`<td>-</td><td>-</td><td>${cur}</td></tr>`;
       return;
     }
