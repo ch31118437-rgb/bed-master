@@ -168,13 +168,16 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.6.0</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.7.0</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
     <button class="ni admin-only" onclick="switchTab('add')">➕ 침대 추가</button>
     <button class="ni" onclick="switchTab('log')">📝 수정 로그</button>
     <button class="ni admin-only" onclick="switchTab('report')">📊 주간/월간 보고서</button>
+    <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
+    <button class="ni" onclick="switchTab('wc-list')">🦽 휠체어 목록</button>
+    <button class="ni admin-only" onclick="switchTab('wc-add')">➕ 휠체어 추가</button>
   </nav>
   <div class="sfooter">
     <div style="margin-top:0">
@@ -450,6 +453,139 @@ body.view-mode tr:hover td{cursor:default}
     </div>
   </div>
 
+
+  <!-- 휠체어 목록 -->
+  <div id="wc-list" class="section" style="display:none">
+    <div class="ph"><div class="pt">휠체어 목록</div><div class="ps">휠체어 클릭 → 상세보기 및 수정</div></div>
+    <div class="card">
+      <div class="filter-bar">
+        <div class="fg"><label class="fl">구분</label>
+          <select id="wf-status" onchange="renderWcList()">
+            <option value="">전체</option>
+            <option value="대여">대여</option>
+            <option value="대대여">대대여</option>
+            <option value="일반대여">일반대여</option>
+            <option value="보관">보관</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">모델</label>
+          <select id="wf-model" onchange="renderWcList()">
+            <option value="">전체</option>
+          <option value="MIKI-W">MIKI-W</option>
+          <option value="MIKI-W AH">MIKI-W AH</option>
+          <option value="MIKI-PB">MIKI-PB</option>
+          <option value="MIKI-JTN">MIKI-JTN</option>
+          <option value="SKT-400">SKT-400</option>
+          <option value="MIRAGE7(16D)">MIRAGE7(16D)</option>
+          <option value="MIRAGE-7(22D)-B">MIRAGE-7(22D)-B</option>
+          <option value="MF-22D">MF-22D</option>
+          <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">바코드</label><input type="text" id="wf-barcode" placeholder="바코드 검색" oninput="renderWcList()"></div>
+        <div class="fg"><label class="fl">대여자/기관</label><input type="text" id="wf-renter" placeholder="이름 검색" oninput="renderWcList()"></div>
+        <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wf-lnum" placeholder="L번호 검색" oninput="renderWcList()"></div>
+        <button class="btn btn-s" onclick="exportWcCSV()">CSV 내보내기</button>
+        <button class="btn btn-s" onclick="resetWcFilters()">초기화</button>
+      </div>
+      <div id="wc-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>바코드</th><th>모델</th><th>구분</th><th>대여자</th><th>거래처</th><th>장기요양번호</th><th>시/도</th><th>구/군</th><th>기관명</th><th>설치자</th></tr></thead>
+          <tbody id="wc-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 휠체어 추가 -->
+  <div id="wc-add" class="section" style="display:none">
+    <div class="ph"><div class="pt">휠체어 추가</div><div class="ps">새 휠체어를 등록합니다</div></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="fg"><label class="fl">바코드</label><input type="text" id="wa-barcode" placeholder="바코드 입력"></div>
+        <div class="fg"><label class="fl">모델 *</label>
+          <select id="wa-model">
+            <option value="">선택</option>
+          <option value="MIKI-W">MIKI-W</option>
+          <option value="MIKI-W AH">MIKI-W AH</option>
+          <option value="MIKI-PB">MIKI-PB</option>
+          <option value="MIKI-JTN">MIKI-JTN</option>
+          <option value="SKT-400">SKT-400</option>
+          <option value="MIRAGE7(16D)">MIRAGE7(16D)</option>
+          <option value="MIRAGE-7(22D)-B">MIRAGE-7(22D)-B</option>
+          <option value="MF-22D">MF-22D</option>
+          <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">구분 *</label>
+          <select id="wa-status">
+            <option value="대여">대여</option>
+            <option value="대대여">대대여</option>
+            <option value="일반대여">일반대여</option>
+            <option value="보관">보관</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">대여자</label><input type="text" id="wa-renter"></div>
+        <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wa-lnum"></div>
+        <div class="fg"><label class="fl">시/도</label><input type="text" id="wa-region"></div>
+        <div class="fg"><label class="fl">구/군</label><input type="text" id="wa-gu"></div>
+        <div class="fg"><label class="fl">기관명</label><input type="text" id="wa-agency"></div>
+        <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="wa-daedae"></div>
+        <div class="fg"><label class="fl">설치자</label><input type="text" id="wa-installer"></div>
+      </div>
+      <button class="btn btn-p admin-only" onclick="addWc()" style="margin-top:8px">추가</button>
+    </div>
+  </div>
+
+  <!-- 휠체어 수정 모달 -->
+  <div id="wc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;align-items:center;justify-content:center">
+    <div style="background:var(--surface);border-radius:var(--r);padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div style="font-size:16px;font-weight:700" id="wm-title">휠체어 정보</div>
+        <button onclick="closeWcModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="fg"><label class="fl">바코드</label><input type="text" id="wm-barcode"></div>
+        <div class="fg"><label class="fl">모델</label>
+          <select id="wm-model">
+            <option value="">선택</option>
+          <option value="MIKI-W">MIKI-W</option>
+          <option value="MIKI-W AH">MIKI-W AH</option>
+          <option value="MIKI-PB">MIKI-PB</option>
+          <option value="MIKI-JTN">MIKI-JTN</option>
+          <option value="SKT-400">SKT-400</option>
+          <option value="MIRAGE7(16D)">MIRAGE7(16D)</option>
+          <option value="MIRAGE-7(22D)-B">MIRAGE-7(22D)-B</option>
+          <option value="MF-22D">MF-22D</option>
+          <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">구분</label>
+          <select id="wm-status">
+            <option value="대여">대여</option>
+            <option value="대대여">대대여</option>
+            <option value="일반대여">일반대여</option>
+            <option value="보관">보관</option>
+          </select>
+        </div>
+        <div class="fg"><label class="fl">대여자</label><input type="text" id="wm-renter"></div>
+        <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wm-lnum"></div>
+        <div class="fg"><label class="fl">시/도</label><input type="text" id="wm-region"></div>
+        <div class="fg"><label class="fl">구/군</label><input type="text" id="wm-gu"></div>
+        <div class="fg"><label class="fl">기관명</label><input type="text" id="wm-agency"></div>
+        <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="wm-daedae"></div>
+        <div class="fg"><label class="fl">설치자</label><input type="text" id="wm-installer"></div>
+        <div class="fg"><label class="fl">설치일 <button type="button" onclick="document.getElementById('wm-install-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-install-date"></div>
+        <div class="fg"><label class="fl">회수일 <button type="button" onclick="document.getElementById('wm-return-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-return-date"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-p admin-only" onclick="saveWc()">저장</button>
+        <button class="btn admin-only" style="margin-left:auto;color:var(--warn);border-color:transparent;background:none" onclick="deleteWc()">삭제</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -563,7 +699,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbzrVtgFsV45vAhMB5ApJVNWibKc_7-pVpaDIlR69sttwfOyHXvZ3_1ubbGKHWtunRcv0A/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbyb6rg_tIIyHDYkMQCX4lhforPRqOcry-31hJ5RQRj3W8qLePC72QcquyRhiCTM9YEogg/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -605,6 +741,10 @@ async function loadBeds(){
     const res2 = await fetch(sheetUrl + '?action=getHistory', {cache:'no-store'});
     const data2 = await res2.json();
     if(data2 && data2.history) history = data2.history;
+    // 휠체어도 불러오기
+    const res3 = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
+    const data3 = await res3.json();
+    if(data3 && data3.wheelchairs) wheelchairs = data3.wheelchairs;
   } catch(e){
     console.error('불러오기 실패', e);
   }
@@ -615,13 +755,15 @@ async function loadBeds(){
 document.getElementById('dash-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' 기준';
 
 function switchTab(tab){
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report'][i]===tab));
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add'][i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById(tab).classList.add('active');
   if(tab==='dashboard') renderDashboard();
   if(tab==='list'){populateFilters();renderList();}
   if(tab==='log'){renderLog();loadLogSheetUrl();}
   if(tab==='report'){renderReport(); renderHistory();}
+  if(tab==='wc-list'){renderWcList();}
+  if(tab==='wc-add'){renderWcAddForm();}
 }
 
 // ── 배지 ──
@@ -1489,7 +1631,7 @@ function renderReport(){
 
   // 재고
   const depots=['탑클린/인천','시일통상/부산','명성크린케어/구미','청정종합관리/청주','용인창고'];
-  html+=`<div class="rpt-card"><div class="rpt-title">📦 현재 보관 재고</div><table class="rpt-table"><thead><tr><th>거점</th><th>보관 수량</th></tr></thead><tbody>`;
+  html+=`<div class="rpt-card"><div class="rpt-title">📦 침대 보관 재고</div><table class="rpt-table"><thead><tr><th>거점</th><th>보관 수량</th></tr></thead><tbody>`;
   let totalStock=0;
   depots.forEach(d=>{
     const cnt=beds.filter(b=>b.status==='보관'&&b.location===d).length;
@@ -1497,6 +1639,38 @@ function renderReport(){
     html+=`<tr><td style="text-align:left">${d}</td><td>${cnt}</td></tr>`;
   });
   html+=`<tr class="rpt-total"><td>합계</td><td>${totalStock}</td></tr></tbody></table></div>`;
+
+  // 휠체어 현황
+  const wcRent = ['대여','대대여','일반대여'];
+  const wcTotal = wheelchairs.length;
+  const wcRenting = wheelchairs.filter(w=>wcRent.includes(w.status)).length;
+  const wcStored  = wheelchairs.filter(w=>w.status==='보관').length;
+
+  // 모델별 집계
+  const wcByModel = {};
+  wheelchairs.forEach(w=>{
+    const m = w.model||'기타';
+    if(!wcByModel[m]) wcByModel[m]={rent:0,dd:0,general:0,store:0};
+    if(w.status==='대여') wcByModel[m].rent++;
+    else if(w.status==='대대여') wcByModel[m].dd++;
+    else if(w.status==='일반대여') wcByModel[m].general++;
+    else if(w.status==='보관') wcByModel[m].store++;
+  });
+
+  html+=`<div class="rpt-card"><div class="rpt-title">🦽 휠체어 현황</div>
+  <div class="rpt-summary" style="margin-bottom:16px">
+    <div class="rpt-sum-card"><div class="rpt-sum-label">전체</div><div class="rpt-sum-val">${wcTotal}</div></div>
+    <div class="rpt-sum-card"><div class="rpt-sum-label">대여 중</div><div class="rpt-sum-val" style="color:var(--accent)">${wcRenting}</div></div>
+    <div class="rpt-sum-card"><div class="rpt-sum-label">보관</div><div class="rpt-sum-val" style="color:var(--amber)">${wcStored}</div></div>
+    <div class="rpt-sum-card"><div class="rpt-sum-label">대여율</div><div class="rpt-sum-val" style="font-size:20px">${wcTotal?Math.round(wcRenting/wcTotal*100):0}%</div></div>
+  </div>
+  <table class="rpt-table"><thead><tr><th>모델</th><th>직접대여</th><th>대대여</th><th>일반대여</th><th>보관</th><th>합계</th></tr></thead><tbody>`;
+  Object.entries(wcByModel).forEach(([m,v])=>{
+    const tot=v.rent+v.dd+v.general+v.store;
+    html+=`<tr><td style="text-align:left">${m}</td><td>${v.rent||'-'}</td><td>${v.dd||'-'}</td><td>${v.general||'-'}</td><td>${v.store||'-'}</td><td><b>${tot}</b></td></tr>`;
+  });
+  html+=`<tr class="rpt-total"><td>합계</td><td>${wheelchairs.filter(w=>w.status==='대여').length}</td><td>${wheelchairs.filter(w=>w.status==='대대여').length}</td><td>${wheelchairs.filter(w=>w.status==='일반대여').length}</td><td>${wcStored}</td><td><b>${wcTotal}</b></td></tr>`;
+  html+=`</tbody></table></div>`;
 
   if(events.length===0){
     document.getElementById('report-body').innerHTML=`<div class="card" style="text-align:center;padding:40px;color:var(--hint)">
@@ -1687,6 +1861,173 @@ function renderHistory(){
       </td>
     </tr>
   `).join('');
+}
+
+
+// ── 휠체어 마스터 ──────────────────────────────────────────
+let wheelchairs = [];
+let wcEditId = null;
+
+async function loadWheelchairs(){
+  if(!sheetUrl) return;
+  try{
+    const res = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
+    const data = await res.json();
+    if(data && data.wheelchairs) wheelchairs = data.wheelchairs;
+  } catch(e){ console.error('휠체어 불러오기 실패', e); }
+}
+
+async function syncWcToSheet(){
+  if(!sheetUrl) return;
+  try{
+    await fetch(sheetUrl, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({action:'syncWheelchairs', wheelchairs})
+    });
+  } catch(e){ console.error('휠체어 저장 실패', e); }
+}
+
+function renderWcList(){
+  const status  = document.getElementById('wf-status').value;
+  const model   = document.getElementById('wf-model').value;
+  const barcode = document.getElementById('wf-barcode').value.toLowerCase();
+  const renter  = document.getElementById('wf-renter').value.toLowerCase();
+  const lnum    = document.getElementById('wf-lnum').value.toLowerCase();
+
+  let list = [...wheelchairs];
+  if(status)  list = list.filter(w=>w.status===status);
+  if(model)   list = list.filter(w=>w.model===model);
+  if(barcode) list = list.filter(w=>(w.barcode||'').toLowerCase().includes(barcode));
+  if(renter)  list = list.filter(w=>(w.renter||'').toLowerCase().includes(renter)||(w.agency||'').toLowerCase().includes(renter));
+  if(lnum)    list = list.filter(w=>(w.lnum||'').toLowerCase().includes(lnum));
+
+  document.getElementById('wc-count').textContent = list.length+'대 표시 (전체 '+wheelchairs.length+'대)';
+
+  const tbody = document.getElementById('wc-tbody');
+  if(!list.length){
+    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--hint);padding:24px">해당하는 휠체어가 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(w=>`
+    <tr onclick="openWcModal(${w.id})" style="cursor:pointer">
+      <td>${w.barcode||'-'}</td>
+      <td>${w.model||'-'}</td>
+      <td><span class="badge ${w.status==='대여'?'rent':w.status==='대대여'?'dd':w.status==='보관'?'stor':''}">${w.status}</span></td>
+      <td>${w.renter||'-'}</td>
+      <td>${w.daedaeAgency||'-'}</td>
+      <td>${w.lnum||'-'}</td>
+      <td>${w.region||'-'}</td>
+      <td>${w.gu||'-'}</td>
+      <td>${w.agency||'-'}</td>
+      <td>${w.installer||'-'}</td>
+    </tr>
+  `).join('');
+}
+
+function resetWcFilters(){
+  ['wf-status','wf-model','wf-barcode','wf-renter','wf-lnum'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.value='';
+  });
+  renderWcList();
+}
+
+function renderWcAddForm(){ /* 폼은 HTML에 이미 있음 */ }
+
+async function addWc(){
+  const barcode = document.getElementById('wa-barcode').value.trim();
+  const model   = document.getElementById('wa-model').value;
+  if(!model){ showToast('모델을 선택해주세요'); return; }
+  const status  = document.getElementById('wa-status').value;
+  const wc = {
+    id: Date.now(),
+    barcode, model, status,
+    renter:    document.getElementById('wa-renter').value.trim(),
+    lnum:      document.getElementById('wa-lnum').value.trim(),
+    region:    document.getElementById('wa-region').value.trim(),
+    gu:        document.getElementById('wa-gu').value.trim(),
+    agency:    document.getElementById('wa-agency').value.trim(),
+    daedaeAgency: document.getElementById('wa-daedae').value.trim(),
+    installer: document.getElementById('wa-installer').value.trim(),
+    installDate:'', returnDate:''
+  };
+  wheelchairs.push(wc);
+  ['wa-barcode','wa-renter','wa-lnum','wa-region','wa-gu','wa-agency','wa-daedae','wa-installer'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('wa-model').value='';
+  document.getElementById('wa-status').value='대여';
+  showToast('저장 중...');
+  await syncWcToSheet();
+  showToast('휠체어 추가 완료');
+  renderWcList();
+}
+
+function openWcModal(id){
+  const w = wheelchairs.find(x=>x.id===id);
+  if(!w) return;
+  wcEditId = id;
+  document.getElementById('wm-title').textContent = '휠체어 #'+(w.barcode||id);
+  document.getElementById('wm-barcode').value  = w.barcode||'';
+  document.getElementById('wm-model').value    = w.model||'';
+  document.getElementById('wm-status').value   = w.status||'대여';
+  document.getElementById('wm-renter').value   = w.renter||'';
+  document.getElementById('wm-lnum').value     = w.lnum||'';
+  document.getElementById('wm-region').value   = w.region||'';
+  document.getElementById('wm-gu').value       = w.gu||'';
+  document.getElementById('wm-agency').value   = w.agency||'';
+  document.getElementById('wm-daedae').value   = w.daedaeAgency||'';
+  document.getElementById('wm-installer').value= w.installer||'';
+  document.getElementById('wm-install-date').value = w.installDate||'';
+  document.getElementById('wm-return-date').value  = w.returnDate||'';
+  document.getElementById('wc-modal').style.display='flex';
+}
+
+function closeWcModal(){
+  document.getElementById('wc-modal').style.display='none';
+  wcEditId=null;
+}
+
+async function saveWc(){
+  if(!wcEditId) return;
+  const w = wheelchairs.find(x=>x.id===wcEditId);
+  if(!w) return;
+  w.barcode      = document.getElementById('wm-barcode').value.trim();
+  w.model        = document.getElementById('wm-model').value;
+  w.status       = document.getElementById('wm-status').value;
+  w.renter       = document.getElementById('wm-renter').value.trim();
+  w.lnum         = document.getElementById('wm-lnum').value.trim();
+  w.region       = document.getElementById('wm-region').value.trim();
+  w.gu           = document.getElementById('wm-gu').value.trim();
+  w.agency       = document.getElementById('wm-agency').value.trim();
+  w.daedaeAgency = document.getElementById('wm-daedae').value.trim();
+  w.installer    = document.getElementById('wm-installer').value.trim();
+  w.installDate  = document.getElementById('wm-install-date').value;
+  w.returnDate   = document.getElementById('wm-return-date').value;
+  closeWcModal();
+  showToast('저장 중...');
+  await syncWcToSheet();
+  showToast('저장 완료');
+  renderWcList();
+}
+
+async function deleteWc(){
+  if(!wcEditId) return;
+  if(!confirm('이 휠체어를 삭제하시겠습니까?')) return;
+  wheelchairs = wheelchairs.filter(x=>x.id!==wcEditId);
+  closeWcModal();
+  showToast('삭제 중...');
+  await syncWcToSheet();
+  showToast('삭제 완료');
+  renderWcList();
+}
+
+function exportWcCSV(){
+  const rows=[['바코드','모델','구분','대여자','대대여거래처','장기요양번호','시/도','구/군','기관명','설치자','설치일','회수일'],
+    ...wheelchairs.map(w=>[w.barcode||'',w.model||'',w.status,w.renter||'',w.daedaeAgency||'',w.lnum||'',w.region||'',w.gu||'',w.agency||'',w.installer||'',w.installDate||'',w.returnDate||''])];
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='휠체어마스터_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click(); showToast('CSV 내보내기 완료');
 }
 
 function showToast(msg){
