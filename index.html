@@ -740,7 +740,13 @@ async function loadBeds(){
     // 이력도 같이 불러오기
     const res2 = await fetch(sheetUrl + '?action=getHistory', {cache:'no-store'});
     const data2 = await res2.json();
-    if(data2 && data2.history) history = data2.history;
+    if(data2 && data2.history){
+      history = data2.history.map(h=>({
+        ...h,
+        installDate: normalizeDate(h.installDate),
+        returnDate:  normalizeDate(h.returnDate)
+      }));
+    }
     // 휠체어도 불러오기
     const res3 = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
     const data3 = await res3.json();
@@ -1529,17 +1535,19 @@ function renderReport(){
   const events = [];
   history.forEach(h=>{
     if(h.installDate){
-      const wn = getWeekNumber(h.installDate, year, month);
+      const instDate = normalizeDate(h.installDate);
+      const wn = getWeekNumber(instDate, year, month);
       if(wn >= 1 && wn <= 5) events.push({
-        date:h.installDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
+        date:instDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
         renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
         reportRegion:h.reportRegion||'',fromStatus:'보관',toStatus:h.status||'대여'
       });
     }
     if(h.returnDate){
-      const wn = getWeekNumber(h.returnDate, year, month);
+      const retDate = normalizeDate(h.returnDate);
+      const wn = getWeekNumber(retDate, year, month);
       if(wn >= 1 && wn <= 5) events.push({
-        date:h.returnDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
+        date:retDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
         renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
         reportRegion:h.reportRegion||'',fromStatus:h.status||'대여',toStatus:'보관'
       });
