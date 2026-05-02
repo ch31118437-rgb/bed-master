@@ -699,7 +699,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbyb6rg_tIIyHDYkMQCX4lhforPRqOcry-31hJ5RQRj3W8qLePC72QcquyRhiCTM9YEogg/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbxev0IlbzaThxYPOs2r_ZW0miwmCj0yGo_JcK0c0YHHGzDSkF-sN5KgQ51AWUWAbAkxHQ/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -744,6 +744,10 @@ async function loadBeds(){
     // 휠체어도 불러오기
     const res3 = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
     const data3 = await res3.json();
+    // 전월실적 불러오기
+    const res4 = await fetch(sheetUrl + '?action=getPrevMonth', {cache:'no-store'});
+    const data4 = await res4.json();
+    if(data4 && data4.prevMonth) prevMonthCache = data4.prevMonth;
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
       wheelchairs = data3.wheelchairs;
     } else if(wheelchairs.length > 0){
@@ -1333,6 +1337,7 @@ function exportCSV(){
 const LOG_KEY='bed_log_v1';
 let logs=[];
 let history=[]; // 설치회수이력
+let prevMonthData = {}; // 전월실적 수기입력 저장
 
 
 function loadLogs(){
@@ -1505,158 +1510,169 @@ function renderReport(){
   const month = parseInt(document.getElementById('rpt-month').value);
   if(!year||!month) return;
 
+  const FIXED_ROWS = {"직접대여": ["서구", "부평구", "미추홀구", "중구", "인천 기타", "인천 외 지역", "어울마당", "리하원"], "수수료대여": ["아리아케어", "진명TNB"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
+  const WC_ROWS    = ["복지용구", "대대여", "일반대여(유상)", "일반대여(무상)"];
+  const prevData   = loadPrevMonth(year, month);
+
   const RENT = ['대여','수수료대여','일반대여','대대여'];
   const isInstall = l => !RENT.includes(l.fromStatus) && RENT.includes(l.toStatus);
   const isReturn  = l => RENT.includes(l.fromStatus) && !RENT.includes(l.toStatus);
 
   // 이력 기반 이벤트 수집
   const events = [];
-
   history.forEach(h=>{
-    // 설치 이벤트
     if(h.installDate){
       const wn = getWeekNumber(h.installDate, year, month);
-      if(wn >= 1 && wn <= 5){
-        events.push({
-          date: h.installDate, _week: wn,
-          bedNum: h.bedNum, barcode: h.barcode||'',
-          renter: h.renter||'', agency: h.agency||'',
-          daedaeAgency: h.daedaeAgency||'', reportRegion: h.reportRegion||'',
-          fromStatus:'보관', toStatus: h.status||'대여'
-        });
-      }
+      if(wn >= 1 && wn <= 5) events.push({
+        date:h.installDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
+        renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'',fromStatus:'보관',toStatus:h.status||'대여'
+      });
     }
-    // 회수 이벤트
     if(h.returnDate){
       const wn = getWeekNumber(h.returnDate, year, month);
-      if(wn >= 1 && wn <= 5){
-        events.push({
-          date: h.returnDate, _week: wn,
-          bedNum: h.bedNum, barcode: h.barcode||'',
-          renter: h.renter||'', agency: h.agency||'',
-          daedaeAgency: h.daedaeAgency||'', reportRegion: h.reportRegion||'',
-          fromStatus: h.status||'대여', toStatus:'보관'
-        });
-      }
+      if(wn >= 1 && wn <= 5) events.push({
+        date:h.returnDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
+        renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'',fromStatus:h.status||'대여',toStatus:'보관'
+      });
     }
   });
 
-  // 주차별 분류
   const weeks = {1:[],2:[],3:[],4:[],5:[]};
   events.forEach(e=>{ if(weeks[e._week]) weeks[e._week].push(e); });
 
-  // 구분 정의 (대대여: fromStatus OR toStatus 가 대대여면 포함)
-  const groups = [
-    {name:'직접대여',   match: e=>e.toStatus==='대여'||e.fromStatus==='대여',          keyFn: e=>e.reportRegion||'(지역 미지정)'},
-    {name:'수수료대여', match: e=>e.toStatus==='수수료대여'||e.fromStatus==='수수료대여', keyFn: e=>e.agency||e.renter||'기타'},
-    {name:'대대여',     match: e=>e.toStatus==='대대여'||e.fromStatus==='대대여',         keyFn: e=>e.daedaeAgency||e.agency||'기타'},
-    {name:'일반대여',   match: e=>e.toStatus==='일반대여'||e.fromStatus==='일반대여',     keyFn: e=>e.agency||'일반대여'},
-  ];
-
-  const curRent = {
-    '직접대여':   beds.filter(b=>b.status==='대여').length,
-    '수수료대여': beds.filter(b=>b.status==='수수료대여').length,
-    '대대여':     beds.filter(b=>b.status==='대대여').length,
-    '일반대여':   beds.filter(b=>b.status==='일반대여').length,
-  };
-
-  const totalInst    = events.filter(isInstall).length;
-  const totalRet     = events.filter(isReturn).length;
-  const totalRentNow = Object.values(curRent).reduce((a,b)=>a+b,0);
-
-  // 해당 월 첫번째 수요일 찾기 (1주차 수요일)
+  // 주차 라벨
   const firstOfMonth = new Date(year, month-1, 1);
   let firstWed = new Date(firstOfMonth);
   while(firstWed.getDay() !== 3) firstWed.setDate(firstWed.getDate()+1);
-
-  // 주차 라벨: 목요일~수요일
   const weekLabels = [1,2,3,4,5].map(w=>{
     const wed = new Date(firstWed); wed.setDate(firstWed.getDate()+(w-1)*7);
     const thu = new Date(wed); thu.setDate(wed.getDate()-6);
-    return (thu.getMonth()+1)+'/'+(thu.getDate())+'~'+(wed.getMonth()+1)+'/'+(wed.getDate());
+    return (thu.getMonth()+1)+'/'+thu.getDate()+'~'+(wed.getMonth()+1)+'/'+wed.getDate();
   });
-  // 유효한 주차: 수요일이 해당 월인 것만
   const validWeeks = [1,2,3,4,5].filter(w=>{
     const wed = new Date(firstWed); wed.setDate(firstWed.getDate()+(w-1)*7);
-    return wed.getMonth()+1 === month && wed.getFullYear() === year;
+    return wed.getMonth()+1===month && wed.getFullYear()===year;
   });
 
-  let html = `
-  <div class="rpt-summary">
-    <div class="rpt-sum-card"><div class="rpt-sum-label">설치 (${month}월)</div><div class="rpt-sum-val rpt-plus">+${totalInst}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">회수 (${month}월)</div><div class="rpt-sum-val rpt-minus">-${totalRet}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">순증감</div><div class="rpt-sum-val" style="color:${totalInst-totalRet>=0?'var(--accent)':'var(--warn)'}">${totalInst-totalRet>=0?'+':''}${totalInst-totalRet}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">현재 대여 중</div><div class="rpt-sum-val" style="color:var(--blue)">${totalRentNow}</div></div>
-  </div>
-  <div class="rpt-card">
-    <div class="rpt-title">📋 ${year}년 ${month}월 설치/회수 현황 (목~수 기준 주차)</div>
+  // 테이블 헤더
+  let html = `<div class="rpt-card">
+    <div class="rpt-title">📋 ${year}년 ${month}월 설치/회수 현황 (목~수 기준)</div>
+    <div style="font-size:11px;color:var(--hint);margin-bottom:10px">💡 전월실적은 직접 입력하세요. 입력값은 자동 저장됩니다.</div>
     <table class="rpt-table">
       <thead>
         <tr>
-          <th rowspan="2">구분</th><th rowspan="2">거래처/지역</th>
+          <th rowspan="2">구분</th><th rowspan="2">지역/거래처</th>
+          <th rowspan="2">전월실적</th>
           ${validWeeks.map(w=>`<th colspan="2" style="font-size:10px">${w}주<br><span style="font-weight:400">${weekLabels[w-1]}</span></th>`).join('')}
-          <th colspan="2">합계</th><th rowspan="2">현재<br>대여중</th>
+          <th rowspan="2">현재실적</th>
         </tr>
-        <tr>${validWeeks.map(()=>'<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th>').join('')}<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th></tr>
+        <tr>${validWeeks.map(()=>'<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th>').join('')}</tr>
       </thead><tbody>`;
 
-  let grandTotalInst=0, grandTotalRet=0;
+  let grandPrev=0, grandCur=0, grandInstTotal=0, grandRetTotal=0;
 
-  groups.forEach(g=>{
-    const gEvents = events.filter(g.match);
-    const keySet  = new Set(gEvents.map(g.keyFn));
-    const keys    = [...keySet];
-    const cur     = curRent[g.name]||0;
+  // 구분별 매핑
+  const groupMatch = {
+    '직접대여':   e=>(e.toStatus==='대여'||e.fromStatus==='대여'),
+    '수수료대여': e=>(e.toStatus==='수수료대여'||e.fromStatus==='수수료대여'),
+    '대대여':     e=>(e.toStatus==='대대여'||e.fromStatus==='대대여'),
+    '일반대여':   e=>(e.toStatus==='일반대여'||e.fromStatus==='일반대여'),
+  };
+  const groupKey = {
+    '직접대여':   e=>e.reportRegion||'',
+    '수수료대여': e=>e.agency||e.renter||'',
+    '대대여':     e=>e.daedaeAgency||e.agency||'',
+    '일반대여':   e=>'일반대여',
+  };
 
-    if(keys.length===0){
-      html+=`<tr><td class="rpt-group" colspan="2">${g.name}</td>`;
-      validWeeks.forEach(()=>html+='<td>-</td><td>-</td>');
-      html+=`<td>-</td><td>-</td><td>${cur}</td></tr>`;
-      return;
-    }
-
-    let gTotalInst=0, gTotalRet=0;
-    const rowData = keys.map(key=>{
-      const wData={};
-      [1,2,3,4,5].forEach(w=>{
-        const we=(weeks[w]||[]).filter(e=>g.match(e)&&g.keyFn(e)===key);
-        wData[w]={inst:we.filter(isInstall).length, ret:we.filter(isReturn).length};
+  Object.entries(FIXED_ROWS).forEach(([gName, rows])=>{
+    let gPrev=0, gInst=0, gRet=0;
+    const rowData = rows.map(rowName=>{
+      const prev = prevData[gName+'_'+rowName]||0;
+      // 주차별 집계
+      const wData = {};
+      validWeeks.forEach(w=>{
+        const we = (weeks[w]||[]).filter(e=>groupMatch[gName](e) && groupKey[gName](e)===rowName);
+        wData[w] = {inst:we.filter(isInstall).length, ret:we.filter(isReturn).length};
       });
-      const tot={inst:Object.values(wData).reduce((a,v)=>a+v.inst,0), ret:Object.values(wData).reduce((a,v)=>a+v.ret,0)};
-      gTotalInst+=tot.inst; gTotalRet+=tot.ret;
-      return {key,wData,tot};
+      const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
+      const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
+      const cur = prev + totalInst - totalRet;
+      gPrev+=prev; gInst+=totalInst; gRet+=totalRet;
+      return {rowName, prev, wData, totalInst, totalRet, cur};
     });
-    grandTotalInst+=gTotalInst; grandTotalRet+=gTotalRet;
+
+    const gCur = gPrev + gInst - gRet;
+    grandPrev+=gPrev; grandInstTotal+=gInst; grandRetTotal+=gRet; grandCur+=gCur;
 
     rowData.forEach((row,i)=>{
       html+=`<tr>`;
-      if(i===0) html+=`<td class="rpt-group" rowspan="${keys.length}">${g.name}</td>`;
-      html+=`<td style="text-align:left">${row.key}</td>`;
+      if(i===0) html+=`<td class="rpt-group" rowspan="${rows.length+1}">${gName}</td>`;
+      html+=`<td style="text-align:left">${row.rowName}</td>`;
+      html+=`<td><input type="number" value="${row.prev}" min="0"
+        onchange="onPrevInput(${year},${month},'${gName}_${row.rowName}',this.value)"
+        style="width:52px;text-align:center;border:.5px solid var(--border);border-radius:4px;padding:2px 4px;font-size:12px"></td>`;
       validWeeks.forEach(w=>{
-        const v=row.wData[w];
+        const v=row.wData[w]||{inst:0,ret:0};
         html+=`<td>${v.inst>0?`<span class="rpt-plus">+${v.inst}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
         html+=`<td>${v.ret>0?`<span class="rpt-minus">-${v.ret}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
       });
-      html+=`<td><b>${row.tot.inst>0?'+'+row.tot.inst:'-'}</b></td><td><b>${row.tot.ret>0?'-'+row.tot.ret:'-'}</b></td>`;
-      if(i===0) html+=`<td rowspan="${keys.length}">${cur}</td>`;
-      html+=`</tr>`;
+      html+=`<td><b>${row.cur}</b></td></tr>`;
     });
-    html+=`<tr class="rpt-total"><td colspan="2">소계</td>`;
+    // 소계
+    html+=`<tr class="rpt-total"><td>소계</td><td><b>${gPrev}</b></td>`;
     validWeeks.forEach(w=>{
-      const we=(weeks[w]||[]).filter(g.match);
+      const we=(weeks[w]||[]).filter(groupMatch[gName]);
       html+=`<td>${we.filter(isInstall).length>0?'+'+we.filter(isInstall).length:'-'}</td>`;
       html+=`<td>${we.filter(isReturn).length>0?'-'+we.filter(isReturn).length:'-'}</td>`;
     });
-    html+=`<td><b>${gTotalInst>0?'+'+gTotalInst:'-'}</b></td><td><b>${gTotalRet>0?'-'+gTotalRet:'-'}</b></td><td></td></tr>`;
+    html+=`<td><b>${gCur}</b></td></tr>`;
   });
 
-  html+=`<tr class="rpt-total" style="font-size:13px"><td colspan="2">합계</td>`;
+  // 합계
+  html+=`<tr class="rpt-total" style="font-size:13px"><td colspan="2">합계</td><td><b>${grandPrev}</b></td>`;
   validWeeks.forEach(w=>{
     const wi=events.filter(e=>e._week===w).filter(isInstall).length;
     const wr=events.filter(e=>e._week===w).filter(isReturn).length;
     html+=`<td>${wi>0?'+'+wi:'-'}</td><td>${wr>0?'-'+wr:'-'}</td>`;
   });
-  html+=`<td><b>${grandTotalInst>0?'+'+grandTotalInst:'-'}</b></td><td><b>${grandTotalRet>0?'-'+grandTotalRet:'-'}</b></td><td><b>${totalRentNow}</b></td></tr>`;
+  html+=`<td><b>${grandCur}</b></td></tr>`;
+  html+=`</tbody></table></div>`;
+
+  // 휠체어 섹션
+  html+=`<div class="rpt-card"><div class="rpt-title">🦽 휠체어 현황</div>
+    <table class="rpt-table">
+      <thead>
+        <tr>
+          <th rowspan="2">구분</th><th rowspan="2">전월실적</th>
+          ${validWeeks.map(w=>`<th colspan="2" style="font-size:10px">${w}주<br><span style="font-weight:400">${weekLabels[w-1]}</span></th>`).join('')}
+          <th rowspan="2">현재실적</th>
+        </tr>
+        <tr>${validWeeks.map(()=>'<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th>').join('')}</tr>
+      </thead><tbody>`;
+
+  let wcGrandPrev=0, wcGrandCur=0;
+  WC_ROWS.forEach(rowName=>{
+    const prev = prevData['wc_'+rowName]||0;
+    // 휠체어는 이력 없으므로 주차별 0
+    const wData = {};
+    validWeeks.forEach(w=>{ wData[w]={inst:0,ret:0}; });
+    const cur = prev;
+    wcGrandPrev+=prev; wcGrandCur+=cur;
+    html+=`<tr><td style="text-align:left">${rowName}</td>`;
+    html+=`<td><input type="number" value="${prev}" min="0"
+      onchange="onPrevInput(${year},${month},'wc_${rowName}',this.value)"
+      style="width:52px;text-align:center;border:.5px solid var(--border);border-radius:4px;padding:2px 4px;font-size:12px"></td>`;
+    validWeeks.forEach(w=>{
+      html+=`<td><span style="color:var(--hint)">-</span></td><td><span style="color:var(--hint)">-</span></td>`;
+    });
+    html+=`<td><b>${cur}</b></td></tr>`;
+  });
+  html+=`<tr class="rpt-total"><td>합계</td><td><b>${wcGrandPrev}</b></td>`;
+  validWeeks.forEach(()=>html+=`<td>-</td><td>-</td>`);
+  html+=`<td><b>${wcGrandCur}</b></td></tr>`;
   html+=`</tbody></table></div>`;
 
   // 재고
@@ -1670,89 +1686,7 @@ function renderReport(){
   });
   html+=`<tr class="rpt-total"><td>합계</td><td>${totalStock}</td></tr></tbody></table></div>`;
 
-  // 휠체어 현황
-  const wcRent = ['대여','대대여','일반대여'];
-  const wcTotal = wheelchairs.length;
-  const wcRenting = wheelchairs.filter(w=>wcRent.includes(w.status)).length;
-  const wcStored  = wheelchairs.filter(w=>w.status==='보관').length;
-
-  // 모델별 집계
-  const wcByModel = {};
-  wheelchairs.forEach(w=>{
-    const m = w.model||'기타';
-    if(!wcByModel[m]) wcByModel[m]={rent:0,dd:0,general:0,store:0};
-    if(w.status==='대여') wcByModel[m].rent++;
-    else if(w.status==='대대여') wcByModel[m].dd++;
-    else if(w.status==='일반대여') wcByModel[m].general++;
-    else if(w.status==='보관') wcByModel[m].store++;
-  });
-
-  html+=`<div class="rpt-card"><div class="rpt-title">🦽 휠체어 현황</div>
-  <div class="rpt-summary" style="margin-bottom:16px">
-    <div class="rpt-sum-card"><div class="rpt-sum-label">전체</div><div class="rpt-sum-val">${wcTotal}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">대여 중</div><div class="rpt-sum-val" style="color:var(--accent)">${wcRenting}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">보관</div><div class="rpt-sum-val" style="color:var(--amber)">${wcStored}</div></div>
-    <div class="rpt-sum-card"><div class="rpt-sum-label">대여율</div><div class="rpt-sum-val" style="font-size:20px">${wcTotal?Math.round(wcRenting/wcTotal*100):0}%</div></div>
-  </div>
-  <table class="rpt-table"><thead><tr><th>모델</th><th>직접대여</th><th>대대여</th><th>일반대여</th><th>보관</th><th>합계</th></tr></thead><tbody>`;
-  Object.entries(wcByModel).forEach(([m,v])=>{
-    const tot=v.rent+v.dd+v.general+v.store;
-    html+=`<tr><td style="text-align:left">${m}</td><td>${v.rent||'-'}</td><td>${v.dd||'-'}</td><td>${v.general||'-'}</td><td>${v.store||'-'}</td><td><b>${tot}</b></td></tr>`;
-  });
-  html+=`<tr class="rpt-total"><td>합계</td><td>${wheelchairs.filter(w=>w.status==='대여').length}</td><td>${wheelchairs.filter(w=>w.status==='대대여').length}</td><td>${wheelchairs.filter(w=>w.status==='일반대여').length}</td><td>${wcStored}</td><td><b>${wcTotal}</b></td></tr>`;
-  html+=`</tbody></table></div>`;
-
-  if(events.length===0){
-    document.getElementById('report-body').innerHTML=`<div class="card" style="text-align:center;padding:40px;color:var(--hint)">
-      <div style="font-size:32px;margin-bottom:12px">📭</div>
-      <div style="font-weight:600;margin-bottom:6px">${year}년 ${month}월에 설치/회수 기록이 없어요</div>
-      <div style="font-size:12px">침대 수정 시 상태가 변경되거나 설치일/회수일을 입력하면 자동 집계됩니다</div>
-    </div>`+html;
-    return;
-  }
-  document.getElementById('report-body').innerHTML=html;
-}
-
-
-function calcTotalRentDays(b){
-  // 누적 대여일수: installDate~returnDate (회수 완료) 또는 installDate~오늘 (대여중)
-  const RENT = ['대여','수수료대여','일반대여','대대여'];
-  if(!b.installDate) return 0;
-  const instD = new Date(b.installDate);
-  const endD  = b.returnDate ? new Date(b.returnDate) : (RENT.includes(b.status) ? new Date() : null);
-  if(!endD) return 0;
-  return Math.max(0, Math.floor((endD - instD) / 86400000));
-}
-
-function calcStorageDays(b){
-  // 보관일수: returnDate~오늘 (보관중)
-  if(b.status !== '보관') return 0;
-  if(!b.returnDate) return 0;
-  return Math.max(0, Math.floor((new Date() - new Date(b.returnDate)) / 86400000));
-}
-
-function updateDaysInfo(b){
-  const el = document.getElementById('m-days-info');
-  if(!el) return;
-  const inst = b.installDate || document.getElementById('m-install-date').value;
-  const ret  = b.returnDate  || document.getElementById('m-return-date').value;
-  const RENT = ['대여','수수료대여','일반대여','대대여'];
-
-  let parts = [];
-  if(inst) parts.push(`📆 설치일: <b>${inst}</b>`);
-  if(ret)  parts.push(`회수일: <b>${ret}</b>`);
-
-  const rentDays = calcTotalRentDays(b);
-  const storeDays = calcStorageDays(b);
-
-  if(rentDays > 0){
-    parts.push(`<b style="color:var(--accent)">대여 ${rentDays}일${RENT.includes(b.status)?'(대여중)':'(완료)'}</b>`);
-  }
-  if(storeDays > 0){
-    parts.push(`<b style="color:var(--amber)">보관 ${storeDays}일째</b>`);
-  }
-
-  el.innerHTML = parts.length ? parts.join(' &nbsp;|&nbsp; ') : '';
+  document.getElementById('report-body').innerHTML = html;
 }
 
 
@@ -2058,6 +1992,38 @@ function exportWcCSV(){
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='휠체어마스터_'+new Date().toISOString().split('T')[0]+'.csv';
   a.click(); showToast('CSV 내보내기 완료');
+}
+
+
+// ── 전월실적 수기입력 ──────────────────────────────
+function getPrevKey(year, month){ return 'prev_'+year+'_'+month; }
+
+// prevMonthData: {year_month: {rowKey: val}} 형태로 메모리 캐시
+let prevMonthCache = {};
+
+function loadPrevMonth(year, month){
+  const key = getPrevKey(year, month);
+  return prevMonthCache[key] || {};
+}
+
+async function savePrevMonth(year, month, data){
+  const key = getPrevKey(year, month);
+  prevMonthCache[key] = data;
+  // 구글 시트에도 저장
+  if(!sheetUrl) return;
+  try{
+    await fetch(sheetUrl, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({action:'savePrevMonth', key, data})
+    });
+  } catch(e){ console.error('전월실적 저장 실패', e); }
+}
+
+async function onPrevInput(year, month, rowKey, val){
+  const data = loadPrevMonth(year, month);
+  data[rowKey] = parseInt(val)||0;
+  await savePrevMonth(year, month, data);
+  renderReport();
 }
 
 function showToast(msg){
