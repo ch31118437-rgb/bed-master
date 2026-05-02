@@ -985,20 +985,50 @@ async function saveBed(){
     b.gu=(document.getElementById('m-gu')||{value:''}).value.trim();
     b.agency=document.getElementById('m-agency').value.trim();
     b.location=b.region||'미기재';
+    b.daedaeAgency=''; // 대대여 잔여 데이터 초기화
   } else if(b.status==='대대여'){
     b.renter=document.getElementById('m-dd-renter').value.trim();
     b.daedaeAgency=document.getElementById('m-dd-agency').value.trim();
     b.agency=b.daedaeAgency;
     b.location=b.daedaeAgency||'미기재';
-    b.lnum='';b.region='';
+    b.lnum='';b.region='';b.gu='';
   } else if(b.status==='보관'){
     let loc=document.getElementById('m-depot-val').value;
     if(loc==='__other__') loc=document.getElementById('m-other-loc').value.trim();
-    b.location=loc;b.renter='';b.lnum='';b.region='';b.agency='';
+    b.location=loc;b.renter='';b.lnum='';b.region='';b.gu='';
+    b.agency='';b.daedaeAgency=''; // 대대여 잔여 데이터 초기화
   }
-  // 로그 기록
+
+  // ── 날짜 처리 ──
+  const instDateVal = document.getElementById('m-install-date').value;
+  const retDateVal  = document.getElementById('m-return-date').value;
+  const today = new Date().toISOString().split('T')[0];
+  const RENT  = ['대여','수수료대여','일반대여','대대여'];
+
+  // 상태 변경 시 날짜 자동 세팅
+  if(oldBed.status !== b.status){
+    // 보관→대여: 설치일 자동
+    if(!RENT.includes(oldBed.status) && RENT.includes(b.status)){
+      b.installDate = instDateVal || b.installDate || today;
+      b.returnDate  = ''; // 회수일 초기화
+    }
+    // 대여→보관: 회수일 자동
+    if(RENT.includes(oldBed.status) && !RENT.includes(b.status)){
+      b.returnDate  = retDateVal || b.returnDate || today;
+    }
+  } else {
+    // 상태 변경 없이 날짜만 수동 입력한 경우
+    if(instDateVal) b.installDate = instDateVal;
+    if(retDateVal)  b.returnDate  = retDateVal;
+  }
+
+  // 대여일수/보관일수 계산
+  b.totalRentDays = calcTotalRentDays(b);
+  b.storageDays   = calcStorageDays(b);
+
+  // 로그 기록 (fromStatus, toStatus 포함)
   const changeDesc=buildChangeDesc(oldBed,b);
-  addLog('edit',b,changeDesc);
+  addLog('edit',b,changeDesc,oldBed.status,b.status);
   closeModal(); populateFilters(); renderList(); renderDashboard();
   showToast(`저장 중...`);
   await syncAllToSheet();
@@ -1292,10 +1322,16 @@ function renderReport(){
   const firstOfMonth = new Date(year, month-1, 1);
   let firstThu = new Date(firstOfMonth);
   while(firstThu.getDay() !== 4) firstThu.setDate(firstThu.getDate()+1);
+  // 해당 월에 하루라도 겹치는 주차만 표시
   const weekLabels = [1,2,3,4,5].map(w=>{
     const thu = new Date(firstThu); thu.setDate(firstThu.getDate()+(w-1)*7);
     const wed = new Date(thu); wed.setDate(thu.getDate()+6);
     return `${thu.getMonth()+1}/${thu.getDate()}~${wed.getMonth()+1}/${wed.getDate()}`;
+  });
+  // 유효한 주차: 목요일이 해당 월인 것만
+  const validWeeks = [1,2,3,4,5].filter(w=>{
+    const thu = new Date(firstThu); thu.setDate(firstThu.getDate()+(w-1)*7);
+    return thu.getMonth()+1 === month && thu.getFullYear() === year;
   });
 
   let html = `
@@ -1311,10 +1347,10 @@ function renderReport(){
       <thead>
         <tr>
           <th rowspan="2">구분</th><th rowspan="2">거래처/지역</th>
-          ${[1,2,3,4,5].map(w=>`<th colspan="2" style="font-size:10px">${w}주<br><span style="font-weight:400">${weekLabels[w-1]}</span></th>`).join('')}
+          ${validWeeks.map(w=>`<th colspan="2" style="font-size:10px">${w}주<br><span style="font-weight:400">${weekLabels[w-1]}</span></th>`).join('')}
           <th colspan="2">합계</th><th rowspan="2">현재<br>대여중</th>
         </tr>
-        <tr>${[...Array(6)].map(()=>'<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th>').join('')}</tr>
+        <tr>${validWeeks.map(()=>'<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th>').join('')}<th style="font-size:10px;color:#adf">설치</th><th style="font-size:10px;color:#faa">회수</th></tr>
       </thead><tbody>`;
 
   let grandTotalInst=0, grandTotalRet=0;
@@ -1349,7 +1385,7 @@ function renderReport(){
       html+=`<tr>`;
       if(i===0) html+=`<td class="rpt-group" rowspan="${keys.length}">${g.name}</td>`;
       html+=`<td style="text-align:left">${row.key}</td>`;
-      [1,2,3,4,5].forEach(w=>{
+      validWeeks.forEach(w=>{
         const v=row.wData[w];
         html+=`<td>${v.inst>0?`<span class="rpt-plus">+${v.inst}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
         html+=`<td>${v.ret>0?`<span class="rpt-minus">-${v.ret}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
@@ -1359,7 +1395,7 @@ function renderReport(){
       html+=`</tr>`;
     });
     html+=`<tr class="rpt-total"><td colspan="2">소계</td>`;
-    [1,2,3,4,5].forEach(w=>{
+    validWeeks.forEach(w=>{
       const we=(weeks[w]||[]).filter(g.match);
       html+=`<td>${we.filter(isInstall).length>0?'+'+we.filter(isInstall).length:'-'}</td>`;
       html+=`<td>${we.filter(isReturn).length>0?'-'+we.filter(isReturn).length:'-'}</td>`;
@@ -1368,7 +1404,7 @@ function renderReport(){
   });
 
   html+=`<tr class="rpt-total" style="font-size:13px"><td colspan="2">합계</td>`;
-  [1,2,3,4,5].forEach(w=>{
+  validWeeks.forEach(w=>{
     const wi=events.filter(e=>e._week===w).filter(isInstall).length;
     const wr=events.filter(e=>e._week===w).filter(isReturn).length;
     html+=`<td>${wi>0?'+'+wi:'-'}</td><td>${wr>0?'-'+wr:'-'}</td>`;
