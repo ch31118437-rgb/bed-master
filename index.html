@@ -1298,20 +1298,16 @@ function renderReport(){
   const totalRet     = events.filter(isReturn).length;
   const totalRentNow = Object.values(curRent).reduce((a,b)=>a+b,0);
 
-  // 주차 라벨 (해당 월 첫 목요일 기준)
-  const firstOfMonth = new Date(year, month-1, 1);
-  let firstThu = new Date(firstOfMonth);
-  while(firstThu.getDay() !== 4) firstThu.setDate(firstThu.getDate()+1);
   // 해당 월 첫번째 수요일 찾기 (1주차 수요일)
-  const firstOfMonth2 = new Date(year, month-1, 1);
-  let firstWed = new Date(firstOfMonth2);
+  const firstOfMonth = new Date(year, month-1, 1);
+  let firstWed = new Date(firstOfMonth);
   while(firstWed.getDay() !== 3) firstWed.setDate(firstWed.getDate()+1);
 
   // 주차 라벨: 목요일~수요일
   const weekLabels = [1,2,3,4,5].map(w=>{
     const wed = new Date(firstWed); wed.setDate(firstWed.getDate()+(w-1)*7);
     const thu = new Date(wed); thu.setDate(wed.getDate()-6);
-    return ;
+    return (thu.getMonth()+1)+'/'+(thu.getDate())+'~'+(wed.getMonth()+1)+'/'+(wed.getDate());
   });
   // 유효한 주차: 수요일이 해당 월인 것만
   const validWeeks = [1,2,3,4,5].filter(w=>{
