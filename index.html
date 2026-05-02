@@ -1225,56 +1225,34 @@ function renderReport(){
   const isInstall = l => !RENT.includes(l.fromStatus) && RENT.includes(l.toStatus);
   const isReturn  = l => RENT.includes(l.fromStatus) && !RENT.includes(l.toStatus);
 
-  // 해당 월 귀속 이벤트 수집 (목요일 기준 월 귀속)
+  // 해당 월 귀속 이벤트 수집 — beds의 installDate/returnDate 기반 (구글 시트 저장값)
   const events = [];
-  const addedKeys = new Set();
 
-  // 로그에서
-  logs.forEach(l=>{
-    if(!l.date) return;
-    if(!l.fromStatus || !l.toStatus || l.fromStatus === l.toStatus) return;
-    const wn = getWeekNumber(l.date, year, month);
-    if(wn < 1 || wn > 5) return;
-    const key = l.bedNum + '_' + l.date + '_' + l.fromStatus + '_' + l.toStatus;
-    if(addedKeys.has(key)) return;
-    addedKeys.add(key);
-    events.push({...l, _week: wn, _src:'log'});
-  });
-
-  // beds의 installDate/returnDate 수동 입력분
   beds.forEach(b=>{
+    // 설치 이벤트
     if(b.installDate){
       const wn = getWeekNumber(b.installDate, year, month);
       if(wn >= 1 && wn <= 5){
-        const key = b.num + '_' + b.installDate + '_설치';
-        if(!addedKeys.has(key)){
-          addedKeys.add(key);
-          events.push({
-            date: b.installDate, _week: wn,
-            bedNum: b.num, barcode: b.barcode||'',
-            renter: b.renter||'', agency: b.agency||'',
-            daedaeAgency: b.daedaeAgency||'',
-            status: b.status, fromStatus:'보관', toStatus: b.status,
-            _src:'manual'
-          });
-        }
+        events.push({
+          date: b.installDate, _week: wn,
+          bedNum: b.num, barcode: b.barcode||'',
+          renter: b.renter||'', agency: b.agency||'',
+          daedaeAgency: b.daedaeAgency||'',
+          status: b.status, fromStatus:'보관', toStatus: b.status
+        });
       }
     }
+    // 회수 이벤트
     if(b.returnDate){
       const wn = getWeekNumber(b.returnDate, year, month);
       if(wn >= 1 && wn <= 5){
-        const key = b.num + '_' + b.returnDate + '_회수';
-        if(!addedKeys.has(key)){
-          addedKeys.add(key);
-          events.push({
-            date: b.returnDate, _week: wn,
-            bedNum: b.num, barcode: b.barcode||'',
-            renter: b.renter||'', agency: b.agency||'',
-            daedaeAgency: b.daedaeAgency||'',
-            status:'보관', fromStatus: b.status, toStatus:'보관',
-            _src:'manual'
-          });
-        }
+        events.push({
+          date: b.returnDate, _week: wn,
+          bedNum: b.num, barcode: b.barcode||'',
+          renter: b.renter||'', agency: b.agency||'',
+          daedaeAgency: b.daedaeAgency||'',
+          status:'보관', fromStatus: b.status, toStatus:'보관'
+        });
       }
     }
   });
