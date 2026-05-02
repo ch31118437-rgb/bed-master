@@ -1299,6 +1299,13 @@ async function saveBed(){
     }
   }
 
+  // reportRegion 변경 시 미완료 이력도 업데이트
+  if(oldBed.reportRegion !== b.reportRegion){
+    const openHistory = history.filter(h=>h.bedNum===b.num && !h.returnDate);
+    openHistory.forEach(h=>{ h.reportRegion = b.reportRegion||''; });
+    if(openHistory.length > 0) await syncHistoryToSheet();
+  }
+
   // 로그 기록 (fromStatus, toStatus 포함)
   const changeDesc=buildChangeDesc(oldBed,b);
   addLog('edit',b,changeDesc,oldBed.status,b.status);
@@ -1691,6 +1698,18 @@ function renderReport(){
 
 
 // ── 설치회수이력 ──────────────────────────────────────────
+function normalizeDate(d){
+  if(!d) return '';
+  // 이미 YYYY-MM-DD 형식이면 그대로
+  if(/^\d{4}-\d{2}-\d{2}$/.test(String(d))) return String(d);
+  // Date 객체나 다른 형식이면 변환
+  try{
+    const dt = new Date(d);
+    if(isNaN(dt)) return String(d);
+    return dt.toISOString().split('T')[0];
+  } catch(e){ return String(d); }
+}
+
 async function addHistory(entry){
   const h = {
     id: Date.now(),
@@ -1701,8 +1720,8 @@ async function addHistory(entry){
     agency: entry.agency||'',
     daedaeAgency: entry.daedaeAgency||'',
     reportRegion: entry.reportRegion||'',
-    installDate: entry.installDate||'',
-    returnDate: entry.returnDate||'',
+    installDate: normalizeDate(entry.installDate),
+    returnDate: normalizeDate(entry.returnDate),
     memo: entry.memo||''
   };
   history.push(h);
@@ -2024,6 +2043,38 @@ async function onPrevInput(year, month, rowKey, val){
   data[rowKey] = parseInt(val)||0;
   await savePrevMonth(year, month, data);
   renderReport();
+}
+
+
+function calcTotalRentDays(b){
+  const RENT = ['대여','수수료대여','일반대여','대대여'];
+  if(!b.installDate) return 0;
+  const instD = new Date(b.installDate);
+  const endD  = b.returnDate ? new Date(b.returnDate) : (RENT.includes(b.status) ? new Date() : null);
+  if(!endD) return 0;
+  return Math.max(0, Math.floor((endD - instD) / 86400000));
+}
+
+function calcStorageDays(b){
+  if(b.status !== '보관') return 0;
+  if(!b.returnDate) return 0;
+  return Math.max(0, Math.floor((new Date() - new Date(b.returnDate)) / 86400000));
+}
+
+function updateDaysInfo(b){
+  const el = document.getElementById('m-days-info');
+  if(!el) return;
+  const inst = b.installDate || document.getElementById('m-install-date').value;
+  const ret  = b.returnDate  || document.getElementById('m-return-date').value;
+  const RENT = ['대여','수수료대여','일반대여','대대여'];
+  let parts = [];
+  if(inst) parts.push('📆 설치일: <b>'+inst+'</b>');
+  if(ret)  parts.push('회수일: <b>'+ret+'</b>');
+  const rentDays = calcTotalRentDays(b);
+  const storeDays = calcStorageDays(b);
+  if(rentDays > 0) parts.push('<b style="color:var(--accent)">대여 '+rentDays+'일'+(RENT.includes(b.status)?'(대여중)':'(완료)')+'</b>');
+  if(storeDays > 0) parts.push('<b style="color:var(--amber)">보관 '+storeDays+'일째</b>');
+  el.innerHTML = parts.length ? parts.join(' &nbsp;|&nbsp; ') : '';
 }
 
 function showToast(msg){
