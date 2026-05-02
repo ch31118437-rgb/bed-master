@@ -207,6 +207,10 @@ body.view-mode tr:hover td{cursor:default}
       <div class="ch"><span class="ct">수수료대여 현황</span></div>
       <div class="loc-grid" id="suryo-grid"></div>
     </div>
+    <div class="card" style="margin-top:16px">
+      <div class="ch"><span class="ct">🦽 휠체어 현황</span></div>
+      <div id="wc-summary" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+    </div>
   </div>
 
   <!-- 침대 목록 -->
@@ -458,35 +462,48 @@ body.view-mode tr:hover td{cursor:default}
   <div id="wc-list" class="section">
     <div class="ph"><div class="pt">휠체어 목록</div><div class="ps">휠체어 클릭 → 상세보기 및 수정</div></div>
     <div class="card">
-      <div class="filter-bar">
-        <div class="fg"><label class="fl">구분</label>
-          <select id="wf-status" onchange="renderWcList()">
-            <option value="">전체</option>
-            <option value="대여">대여</option>
-            <option value="대대여">대대여</option>
-            <option value="일반대여">일반대여</option>
-            <option value="보관">보관</option>
-          </select>
+      <div id="wc-filter-bar" style="background:var(--bg);border:.5px solid var(--border);border-radius:var(--rs);padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-size:12px;font-weight:600;color:var(--muted)">🔍 필터</span>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="exportWcCSV()">CSV 내보내기</button>
+            <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="resetWcFilters()">초기화</button>
+          </div>
         </div>
-        <div class="fg"><label class="fl">모델</label>
-          <select id="wf-model" onchange="renderWcList()">
-            <option value="">전체</option>
-          <option value="MIKI-W">MIKI-W</option>
-          <option value="MIKI-W AH">MIKI-W AH</option>
-          <option value="MIKI-PB">MIKI-PB</option>
-          <option value="MIKI-JTN">MIKI-JTN</option>
-          <option value="SKT-400">SKT-400</option>
-          <option value="MIRAGE7(16D)">MIRAGE7(16D)</option>
-          <option value="MIRAGE-7(22D)-B">MIRAGE-7(22D)-B</option>
-          <option value="MF-22D">MF-22D</option>
-          <option value="기타">기타</option>
-          </select>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px">
+          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">구분</div>
+            <select id="wf-status" onchange="renderWcList()" style="width:100%">
+              <option value="">전체</option>
+              <option value="대여">대여</option>
+              <option value="대대여">대대여</option>
+              <option value="일반대여">일반대여</option>
+              <option value="보관">보관</option>
+            </select>
+          </div>
+          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">모델</div>
+            <select id="wf-model" onchange="renderWcList()" style="width:100%">
+              <option value="">전체</option>
+              <option value="MIKI-W">MIKI-W</option>
+              <option value="MIKI-W AH">MIKI-W AH</option>
+              <option value="MIKI-PB">MIKI-PB</option>
+              <option value="MIKI-JTN">MIKI-JTN</option>
+              <option value="SKT-400">SKT-400</option>
+              <option value="MIRAGE7(16D)">MIRAGE7(16D)</option>
+              <option value="MIRAGE-7(22D)-B">MIRAGE-7(22D)-B</option>
+              <option value="MF-22D">MF-22D</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">바코드</div>
+            <input type="text" id="wf-barcode" placeholder="바코드 검색" oninput="renderWcList()" style="width:100%">
+          </div>
+          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">대여자/기관</div>
+            <input type="text" id="wf-renter" placeholder="이름 검색" oninput="renderWcList()" style="width:100%">
+          </div>
+          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">장기요양번호</div>
+            <input type="text" id="wf-lnum" placeholder="L번호 검색" oninput="renderWcList()" style="width:100%">
+          </div>
         </div>
-        <div class="fg"><label class="fl">바코드</label><input type="text" id="wf-barcode" placeholder="바코드 검색" oninput="renderWcList()"></div>
-        <div class="fg"><label class="fl">대여자/기관</label><input type="text" id="wf-renter" placeholder="이름 검색" oninput="renderWcList()"></div>
-        <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wf-lnum" placeholder="L번호 검색" oninput="renderWcList()"></div>
-        <button class="btn btn-s" onclick="exportWcCSV()">CSV 내보내기</button>
-        <button class="btn btn-s" onclick="resetWcFilters()">초기화</button>
       </div>
       <div id="wc-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
       <div style="overflow-x:auto">
@@ -744,7 +761,12 @@ async function loadBeds(){
     // 휠체어도 불러오기
     const res3 = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
     const data3 = await res3.json();
-    if(data3 && data3.wheelchairs) wheelchairs = data3.wheelchairs;
+    if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
+      wheelchairs = data3.wheelchairs;
+    } else if(wheelchairs.length > 0){
+      // 시트 비어있으면 초기 데이터 업로드
+      await syncWcToSheet();
+    }
   } catch(e){
     console.error('불러오기 실패', e);
   }
@@ -901,6 +923,29 @@ function renderDashboard(){
   if(suryoEl) suryoEl.innerHTML=Object.entries(suryoMap).map(([a,c])=>
     `<div class="loc-card"><div class="loc-name">${a}</div><div class="loc-count" style="color:#0A5C4A">${c}</div><div class="loc-sub">대 수수료</div></div>`
   ).join('')||'<div class="empty">수수료대여 데이터 없음</div>';
+
+  // 휠체어 요약
+  const wcEl = document.getElementById('wc-summary');
+  if(wcEl && wheelchairs){
+    const wcRent   = wheelchairs.filter(w=>w.status==='대여').length;
+    const wcDaedae = wheelchairs.filter(w=>w.status==='대대여').length;
+    const wcIlban  = wheelchairs.filter(w=>w.status==='일반대여').length;
+    const wcStore  = wheelchairs.filter(w=>w.status==='보관').length;
+    const wcTotal  = wheelchairs.length;
+    const items = [
+      {label:'대여', val:wcRent, color:'var(--accent)'},
+      {label:'대대여', val:wcDaedae, color:'var(--purple)'},
+      {label:'일반대여', val:wcIlban, color:'var(--blue)'},
+      {label:'보관', val:wcStore, color:'var(--amber)'},
+      {label:'전체', val:wcTotal, color:'var(--fg)'},
+    ];
+    wcEl.innerHTML = items.map(it=>
+      `<div style="background:var(--bg);border:.5px solid var(--border);border-radius:var(--rs);padding:10px 18px;text-align:center;min-width:80px">
+        <div style="font-size:11px;color:var(--hint);margin-bottom:4px">${it.label}</div>
+        <div style="font-size:22px;font-weight:700;color:${it.color}">${it.val}<span style="font-size:12px;font-weight:400">대</span></div>
+      </div>`
+    ).join('');
+  }
 }
 
 // ── 목록 ──
@@ -1874,7 +1919,7 @@ async function loadWheelchairs(){
   try{
     const res = await fetch(sheetUrl + '?action=getWheelchairs', {cache:'no-store'});
     const data = await res.json();
-    if(data && data.wheelchairs) wheelchairs = data.wheelchairs;
+    if(data && data.wheelchairs && data.wheelchairs.length > 0) wheelchairs = data.wheelchairs;
   } catch(e){ console.error('휠체어 불러오기 실패', e); }
 }
 
