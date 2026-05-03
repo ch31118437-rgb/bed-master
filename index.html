@@ -551,36 +551,68 @@ body.view-mode tr:hover td{cursor:default}
   </div>
 
   <!-- 휠체어 수정 모달 -->
-  <div id="wc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;align-items:center;justify-content:center">
-    <div style="background:var(--surface);border-radius:var(--r);padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <div style="font-size:16px;font-weight:700" id="wm-title">휠체어 정보</div>
-        <button onclick="closeWcModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)">✕</button>
-      </div>
-      <div class="form-grid">
+  <div class="modal-bg" id="wc-modal">
+    <div class="modal">
+      <button class="modal-close" onclick="closeWcModal()">✕</button>
+      <div class="modal-title" id="wm-title">휠체어 정보</div>
+      <div class="modal-sub" id="wm-sub"></div>
+      <div class="form-grid" style="margin-bottom:12px">
         <div class="fg"><label class="fl">바코드</label><input type="text" id="wm-barcode"></div>
         <div class="fg"><label class="fl">모델</label>
           <input type="text" id="wm-model" placeholder="예: MIKI-W, MF-22D" list="wc-model-list">
         </div>
         <div class="fg"><label class="fl">구분</label>
-          <select id="wm-status">
+          <select id="wm-status" onchange="onWcStatusChange()">
             <option value="대여">대여</option>
             <option value="대대여">대대여</option>
             <option value="일반대여">일반대여</option>
             <option value="보관">보관</option>
           </select>
         </div>
-        <div class="fg"><label class="fl">대여자</label><input type="text" id="wm-renter"></div>
-        <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wm-lnum"></div>
-        <div class="fg"><label class="fl">시/도</label><input type="text" id="wm-region"></div>
-        <div class="fg"><label class="fl">구/군</label><input type="text" id="wm-gu"></div>
-        <div class="fg"><label class="fl">기관명</label><input type="text" id="wm-agency"></div>
-        <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="wm-daedae"></div>
-        <div class="fg"><label class="fl">설치자</label><input type="text" id="wm-installer"></div>
+      </div>
+
+      <!-- 대여 필드 -->
+      <div id="wm-rental">
+        <div class="form-grid">
+          <div class="fg"><label class="fl">대여자</label><input type="text" id="wm-renter"></div>
+          <div class="fg"><label class="fl">장기요양번호</label><input type="text" id="wm-lnum"></div>
+          <div class="fg"><label class="fl">시/도</label><input type="text" id="wm-region"></div>
+          <div class="fg"><label class="fl">구/군</label><input type="text" id="wm-gu"></div>
+          <div class="fg"><label class="fl">기관명</label><input type="text" id="wm-agency"></div>
+          <div class="fg"><label class="fl">설치자</label><input type="text" id="wm-installer"></div>
+        </div>
+      </div>
+
+      <!-- 대대여 필드 -->
+      <div id="wm-daedae-wrap" style="display:none">
+        <div class="form-grid">
+          <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="wm-daedae"></div>
+          <div class="fg"><label class="fl">대여자</label><input type="text" id="wm-dd-renter"></div>
+        </div>
+      </div>
+
+      <!-- 보관 필드 -->
+      <div id="wm-storage" style="display:none">
+        <div class="fg" style="margin-bottom:12px"><label class="fl">보관 거점 선택</label>
+          <div class="depot-btns" id="wm-depot-btns">
+            <button class="depot-btn" onclick="selectWcDepot(this,'탑클린/인천')">탑클린/인천</button>
+            <button class="depot-btn" onclick="selectWcDepot(this,'시일통상/부산')">시일통상/부산</button>
+            <button class="depot-btn" onclick="selectWcDepot(this,'명성크린케어/구미')">명성크린케어/구미</button>
+            <button class="depot-btn" onclick="selectWcDepot(this,'청정종합관리/청주')">청정종합관리/청주</button>
+            <button class="depot-btn" onclick="selectWcDepot(this,'청라창고')">청라창고</button>
+            <button class="depot-btn" onclick="selectWcDepot(this,'용인창고')">용인창고</button>
+          </div>
+          <input type="hidden" id="wm-depot-val">
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="form-grid" style="margin-bottom:12px">
         <div class="fg"><label class="fl">설치일 <button type="button" onclick="document.getElementById('wm-install-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-install-date"></div>
         <div class="fg"><label class="fl">회수일 <button type="button" onclick="document.getElementById('wm-return-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-return-date"></div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:16px">
+
+      <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-p admin-only" onclick="saveWc()">저장</button>
         <button class="btn admin-only" style="margin-left:auto;color:var(--warn);border-color:transparent;background:none" onclick="deleteWc()">삭제</button>
       </div>
@@ -1979,23 +2011,45 @@ async function addWc(){
   renderWcList();
 }
 
+function onWcStatusChange(){
+  const st = document.getElementById('wm-status').value;
+  document.getElementById('wm-rental').style.display      = ['대여','일반대여'].includes(st) ? '' : 'none';
+  document.getElementById('wm-daedae-wrap').style.display = st==='대대여' ? '' : 'none';
+  document.getElementById('wm-storage').style.display     = st==='보관' ? '' : 'none';
+}
+
+function selectWcDepot(btn, val){
+  document.querySelectorAll('#wm-depot-btns .depot-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('wm-depot-val').value = val;
+}
+
 function openWcModal(id){
   const w = wheelchairs.find(x=>x.id===id);
   if(!w) return;
   wcEditId = id;
-  document.getElementById('wm-title').textContent = '휠체어 #'+(w.barcode||id);
-  document.getElementById('wm-barcode').value  = w.barcode||'';
-  document.getElementById('wm-model').value    = w.model||'';
-  document.getElementById('wm-status').value   = w.status||'대여';
-  document.getElementById('wm-renter').value   = w.renter||'';
-  document.getElementById('wm-lnum').value     = w.lnum||'';
-  document.getElementById('wm-region').value   = w.region||'';
-  document.getElementById('wm-gu').value       = w.gu||'';
-  document.getElementById('wm-agency').value   = w.agency||'';
-  document.getElementById('wm-daedae').value   = w.daedaeAgency||'';
-  document.getElementById('wm-installer').value= w.installer||'';
+  document.getElementById('wm-title').textContent = w.model ? w.model+' #'+(w.barcode||id) : '휠체어 #'+(w.barcode||id);
+  document.getElementById('wm-sub').textContent   = w.renter||w.daedaeAgency||'';
+  document.getElementById('wm-barcode').value     = w.barcode||'';
+  document.getElementById('wm-model').value       = w.model||'';
+  document.getElementById('wm-status').value      = w.status||'대여';
+  document.getElementById('wm-renter').value      = w.renter||'';
+  document.getElementById('wm-lnum').value        = w.lnum||'';
+  document.getElementById('wm-region').value      = w.region||'';
+  document.getElementById('wm-gu').value          = w.gu||'';
+  document.getElementById('wm-agency').value      = w.agency||'';
+  document.getElementById('wm-daedae').value      = w.daedaeAgency||'';
+  document.getElementById('wm-dd-renter').value   = w.status==='대대여' ? (w.renter||'') : '';
+  document.getElementById('wm-installer').value   = w.installer||'';
   document.getElementById('wm-install-date').value = w.installDate||'';
   document.getElementById('wm-return-date').value  = w.returnDate||'';
+  // 보관 거점 버튼
+  document.querySelectorAll('#wm-depot-btns .depot-btn').forEach(b=>b.classList.remove('selected'));
+  if(w.location) document.querySelectorAll('#wm-depot-btns .depot-btn').forEach(b=>{
+    if(b.textContent===w.location) b.classList.add('selected');
+  });
+  document.getElementById('wm-depot-val').value = w.location||'';
+  onWcStatusChange();
   document.getElementById('wc-modal').style.display='flex';
 }
 
@@ -2009,18 +2063,33 @@ async function saveWc(){
   const w = wheelchairs.find(x=>x.id===wcEditId);
   if(!w) return;
   const oldWc = {...w};
-  w.barcode      = document.getElementById('wm-barcode').value.trim();
-  w.model        = document.getElementById('wm-model').value;
-  w.status       = document.getElementById('wm-status').value;
-  w.renter       = document.getElementById('wm-renter').value.trim();
-  w.lnum         = document.getElementById('wm-lnum').value.trim();
-  w.region       = document.getElementById('wm-region').value.trim();
-  w.gu           = document.getElementById('wm-gu').value.trim();
-  w.agency       = document.getElementById('wm-agency').value.trim();
-  w.daedaeAgency = document.getElementById('wm-daedae').value.trim();
-  w.installer    = document.getElementById('wm-installer').value.trim();
-  w.installDate  = document.getElementById('wm-install-date').value;
-  w.returnDate   = document.getElementById('wm-return-date').value;
+  w.barcode = document.getElementById('wm-barcode').value.trim();
+  w.model   = document.getElementById('wm-model').value;
+  w.status  = document.getElementById('wm-status').value;
+
+  if(['대여','일반대여'].includes(w.status)){
+    w.renter       = document.getElementById('wm-renter').value.trim();
+    w.lnum         = document.getElementById('wm-lnum').value.trim();
+    w.region       = document.getElementById('wm-region').value.trim();
+    w.gu           = document.getElementById('wm-gu').value.trim();
+    w.agency       = document.getElementById('wm-agency').value.trim();
+    w.installer    = document.getElementById('wm-installer').value.trim();
+    w.daedaeAgency = '';
+    w.location     = w.region||'미기재';
+  } else if(w.status==='대대여'){
+    w.daedaeAgency = document.getElementById('wm-daedae').value.trim();
+    w.renter       = document.getElementById('wm-dd-renter').value.trim();
+    w.agency       = w.daedaeAgency;
+    w.location     = w.daedaeAgency||'미기재';
+    w.lnum=''; w.region=''; w.gu='';
+  } else if(w.status==='보관'){
+    let loc = document.getElementById('wm-depot-val').value;
+    w.location     = loc||'';
+    w.renter=''; w.lnum=''; w.region=''; w.gu='';
+    w.agency=''; w.daedaeAgency='';
+  }
+  w.installDate = document.getElementById('wm-install-date').value;
+  w.returnDate  = document.getElementById('wm-return-date').value;
 
   // 휠체어 이력 자동 추가 (상태 변경 시)
   const RENT_WC = ['대여','대대여','일반대여'];
