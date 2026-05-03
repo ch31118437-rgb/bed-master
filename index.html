@@ -2095,11 +2095,12 @@ async function saveWc(){
   const RENT_WC = ['대여','대대여','일반대여'];
   console.log('휠체어 상태 변경 체크:', oldWc.status, '->', w.status);
   if(oldWc.status !== w.status){
-    // 보관→대여: 설치 이력
-    if(!RENT_WC.includes(oldWc.status) && RENT_WC.includes(w.status)){
+    // 보관→대여: 설치 이력 (oldWc/w.status 모두 변경 전 기준으로 판단)
+    const newStatus = w.status; // 이미 바뀐 상태
+    if(!RENT_WC.includes(oldWc.status) && RENT_WC.includes(newStatus)){
       await addHistory({
         bedNum: w.id, barcode: w.barcode||'',
-        status: w.status, renter: w.renter||'',
+        status: newStatus, renter: w.renter||'',
         agency: w.agency||'', daedaeAgency: w.daedaeAgency||'',
         reportRegion: w.model||'',  // 휠체어는 모델명을 reportRegion 대신 사용
         installDate: w.installDate||'', returnDate: '',
@@ -2107,7 +2108,7 @@ async function saveWc(){
       });
     }
     // 대여→보관: 미완료 이력에 회수일 업데이트
-    if(RENT_WC.includes(oldWc.status) && !RENT_WC.includes(w.status)){
+    if(RENT_WC.includes(oldWc.status) && !RENT_WC.includes(newStatus)){
       const today = new Date().toISOString().split('T')[0];
       const retDate = w.returnDate || today;
       const recent = history.filter(h=>h.bedNum===w.id && !h.returnDate && h.memo && h.memo.startsWith('[휠체어]')).pop();
