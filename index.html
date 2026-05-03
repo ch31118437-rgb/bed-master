@@ -1573,7 +1573,7 @@ function renderReport(){
       if(wn >= 1 && wn <= 5) events.push({
         date:instDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
         renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
-        reportRegion:h.reportRegion||'',fromStatus:'보관',toStatus:toSt
+        reportRegion:h.reportRegion||'',fromStatus:'보관',toStatus:toSt,memo:h.memo||''
       });
     }
     // 회수 이벤트: returnDate 있으면 항상 회수 (status 무관)
@@ -1584,7 +1584,7 @@ function renderReport(){
       if(wn >= 1 && wn <= 5) events.push({
         date:retDate,_week:wn,bedNum:h.bedNum,barcode:h.barcode||'',
         renter:h.renter||'',agency:h.agency||'',daedaeAgency:h.daedaeAgency||'',
-        reportRegion:h.reportRegion||'',fromStatus:fromSt,toStatus:'보관'
+        reportRegion:h.reportRegion||'',fromStatus:fromSt,toStatus:'보관',memo:h.memo||''
       });
     }
   });
