@@ -2108,9 +2108,11 @@ async function saveWc(){
     }
     // 대여→보관: 미완료 이력에 회수일 업데이트
     if(RENT_WC.includes(oldWc.status) && !RENT_WC.includes(w.status)){
-      const recent = history.filter(h=>h.bedNum===w.id && !h.returnDate).pop();
+      const today = new Date().toISOString().split('T')[0];
+      const retDate = w.returnDate || today;
+      const recent = history.filter(h=>h.bedNum===w.id && !h.returnDate && h.memo && h.memo.startsWith('[휠체어]')).pop();
       if(recent){
-        recent.returnDate = w.returnDate||'';
+        recent.returnDate = retDate;
         await syncHistoryToSheet();
       } else {
         await addHistory({
@@ -2118,7 +2120,7 @@ async function saveWc(){
           status: oldWc.status, renter: oldWc.renter||'',
           agency: oldWc.agency||'', daedaeAgency: oldWc.daedaeAgency||'',
           reportRegion: w.model||'',
-          installDate: w.installDate||'', returnDate: w.returnDate||'',
+          installDate: w.installDate||'', returnDate: retDate,
           memo: '[휠체어] '+(w.model||'')
         });
       }
