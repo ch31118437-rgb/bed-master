@@ -1990,6 +1990,7 @@ async function saveWc(){
   if(!wcEditId) return;
   const w = wheelchairs.find(x=>x.id===wcEditId);
   if(!w) return;
+  const oldWc = {...w};
   w.barcode      = document.getElementById('wm-barcode').value.trim();
   w.model        = document.getElementById('wm-model').value;
   w.status       = document.getElementById('wm-status').value;
@@ -2002,6 +2003,41 @@ async function saveWc(){
   w.installer    = document.getElementById('wm-installer').value.trim();
   w.installDate  = document.getElementById('wm-install-date').value;
   w.returnDate   = document.getElementById('wm-return-date').value;
+
+  // 휠체어 이력 자동 추가 (상태 변경 시)
+  const RENT_WC = ['대여','대대여','일반대여'];
+  console.log('휠체어 상태 변경 체크:', oldWc.status, '->', w.status);
+  if(oldWc.status !== w.status){
+    // 보관→대여: 설치 이력
+    if(!RENT_WC.includes(oldWc.status) && RENT_WC.includes(w.status)){
+      await addHistory({
+        bedNum: w.id, barcode: w.barcode||'',
+        status: w.status, renter: w.renter||'',
+        agency: w.agency||'', daedaeAgency: w.daedaeAgency||'',
+        reportRegion: w.model||'',  // 휠체어는 모델명을 reportRegion 대신 사용
+        installDate: w.installDate||'', returnDate: '',
+        memo: '[휠체어] '+( w.model||'')
+      });
+    }
+    // 대여→보관: 미완료 이력에 회수일 업데이트
+    if(RENT_WC.includes(oldWc.status) && !RENT_WC.includes(w.status)){
+      const recent = history.filter(h=>h.bedNum===w.id && !h.returnDate).pop();
+      if(recent){
+        recent.returnDate = w.returnDate||'';
+        await syncHistoryToSheet();
+      } else {
+        await addHistory({
+          bedNum: w.id, barcode: w.barcode||'',
+          status: oldWc.status, renter: oldWc.renter||'',
+          agency: oldWc.agency||'', daedaeAgency: oldWc.daedaeAgency||'',
+          reportRegion: w.model||'',
+          installDate: w.installDate||'', returnDate: w.returnDate||'',
+          memo: '[휠체어] '+(w.model||'')
+        });
+      }
+    }
+  }
+
   closeWcModal();
   showToast('저장 중...');
   await syncWcToSheet();
