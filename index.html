@@ -1522,7 +1522,7 @@ function renderReport(){
   if(!year||!month) return;
 
   const FIXED_ROWS = {"직접대여": ["서구", "부평구", "미추홀구", "중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "진명TNB"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
-  const WC_ROWS    = ["복지용구", "대대여", "일반대여(유상)", "일반대여(무상)"];
+  const WC_ROWS    = ["복지용구", "대대여", "일반대여"];
   const prevData   = loadPrevMonth(year, month);
 
   const RENT = ['대여','수수료대여','일반대여','대대여'];
@@ -1672,19 +1672,37 @@ function renderReport(){
       </thead><tbody>`;
 
   let wcGrandPrev=0, wcGrandCur=0;
+  // 휠체어 status → 보고서 행 매핑
+  const wcStatusMap = {'대여':'복지용구', '대대여':'대대여', '일반대여':'일반대여'};
+  const wcMatchRow = {
+    '복지용구': h => h.status==='대여',
+    '대대여':   h => h.status==='대대여',
+    '일반대여': h => h.status==='일반대여',
+  };
+
   WC_ROWS.forEach(rowName=>{
     const prev = prevData['wc_'+rowName]||0;
-    // 휠체어는 이력 없으므로 주차별 0
+    // 휠체어 이력에서 해당 구분 집계
     const wData = {};
-    validWeeks.forEach(w=>{ wData[w]={inst:0,ret:0}; });
-    const cur = prev;
+    validWeeks.forEach(w=>{
+      const we = (weeks[w]||[]).filter(e=>{
+        const hisStatus = e.fromStatus==='보관' ? e.toStatus : e.fromStatus;
+        return wcMatchRow[rowName] && wcMatchRow[rowName]({status: hisStatus}) && e.memo && e.memo.startsWith('[휠체어]');
+      });
+      wData[w] = {inst: we.filter(isInstall).length, ret: we.filter(isReturn).length};
+    });
+    const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
+    const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
+    const cur = prev + totalInst - totalRet;
     wcGrandPrev+=prev; wcGrandCur+=cur;
     html+=`<tr><td style="text-align:left">${rowName}</td>`;
     html+=`<td><input type="number" value="${prev}" min="0"
       onchange="onPrevInput(${year},${month},'wc_${rowName}',this.value)"
       style="width:52px;text-align:center;border:.5px solid var(--border);border-radius:4px;padding:2px 4px;font-size:12px"></td>`;
     validWeeks.forEach(w=>{
-      html+=`<td><span style="color:var(--hint)">-</span></td><td><span style="color:var(--hint)">-</span></td>`;
+      const v=wData[w]||{inst:0,ret:0};
+      html+=`<td>${v.inst>0?`<span class="rpt-plus">+${v.inst}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
+      html+=`<td>${v.ret>0?`<span class="rpt-minus">-${v.ret}</span>`:'<span style="color:var(--hint)">-</span>'}</td>`;
     });
     html+=`<td><b>${cur}</b></td></tr>`;
   });
