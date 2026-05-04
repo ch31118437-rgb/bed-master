@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.3</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.4</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -876,8 +876,6 @@ async function loadBeds(){
     const res4 = await fetch(sheetUrl + '?action=getPrevMonth', {cache:'no-store'});
     const data4 = await res4.json();
     if(data4 && data4.prevMonth) prevMonthCache = data4.prevMonth;
-    // 메모 불러오기
-    await loadMemo();
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
       wheelchairs = data3.wheelchairs;
     } else if(wheelchairs.length > 0){
@@ -889,6 +887,8 @@ async function loadBeds(){
   }
   showLoading(false);
   renderDashboard(); populateFilters(); renderList();
+  // 메모 독립 로드
+  loadMemo().catch(e=>console.error('메모 로드 실패',e));
 }
 
 document.getElementById('dash-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' 기준';
