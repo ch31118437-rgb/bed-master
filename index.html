@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.7.0</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.8</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -668,17 +668,24 @@ body.view-mode tr:hover td{cursor:default}
         <div class="fg"><label class="fl">시/도</label><input type="text" id="m-region"></div>
       <div class="fg"><label class="fl">구/군</label><input type="text" id="m-gu" placeholder="서구, 미추홀구..."></div>
         <div class="fg"><label class="fl">기관명</label><input type="text" id="m-agency"></div>
-        <div class="fg"><label class="fl">보고용 지역 <span style="color:var(--hint);font-weight:400">(직접대여 보고서 기준)</span></label>
+        <div class="fg" id="m-report-region-wrap"><label class="fl">보고용 지역 <span style="color:var(--hint);font-weight:400">(직접대여 보고서 기준)</span></label>
           <select id="m-report-region">
             <option value="">선택 안함</option>
-          <option value="인천 서구">인천 서구</option>
-          <option value="인천 부평구">인천 부평구</option>
-          <option value="인천 미추홀구">인천 미추홀구</option>
-          <option value="인천 중구">인천 중구</option>
-          <option value="인천 기타">인천 기타</option>
-          <option value="인천 외">인천 외</option>
-          <option value="어울마당">어울마당</option>
-          <option value="리하원">리하원</option>
+            <option value="인천 서구">인천 서구</option>
+            <option value="인천 부평구">인천 부평구</option>
+            <option value="인천 미추홀구">인천 미추홀구</option>
+            <option value="인천 중구">인천 중구</option>
+            <option value="인천 기타">인천 기타</option>
+            <option value="인천 외">인천 외</option>
+            <option value="어울마당">어울마당</option>
+            <option value="리하원">리하원</option>
+          </select>
+        </div>
+        <div class="fg" id="m-suryo-region-wrap" style="display:none"><label class="fl">보고용 거래처 <span style="color:var(--hint);font-weight:400">(수수료대여 보고서 기준)</span></label>
+          <select id="m-suryo-region">
+            <option value="">선택 안함</option>
+            <option value="박종목">박종목</option>
+            <option value="아리아케어">아리아케어</option>
           </select>
         </div>
       </div>
@@ -1191,6 +1198,11 @@ function clearAdd(){
 function onModalStatusChange(){
   const s=document.getElementById('m-status').value;
   document.getElementById('mw-rental').style.display=['대여','수수료대여','일반대여'].includes(s)?'block':'none';
+  // 직접대여/수수료대여 드롭다운 전환
+  const reportWrap = document.getElementById('m-report-region-wrap');
+  const suryoWrap  = document.getElementById('m-suryo-region-wrap');
+  if(reportWrap) reportWrap.style.display = s==='수수료대여' ? 'none' : '';
+  if(suryoWrap)  suryoWrap.style.display  = s==='수수료대여' ? '' : 'none';
   document.getElementById('mw-daedae').style.display=s==='대대여'?'block':'none';
   document.getElementById('mw-storage').style.display=s==='보관'?'block':'none';
 }
@@ -1222,6 +1234,7 @@ function openModal(num){
   const guEl=document.getElementById('m-gu'); if(guEl) guEl.value=b.gu||'';
   document.getElementById('m-agency').value=b.agency||'';
   const rrEl=document.getElementById('m-report-region'); if(rrEl) rrEl.value=b.reportRegion||'';
+  const srEl=document.getElementById('m-suryo-region'); if(srEl) srEl.value=b.reportRegion||'';
   document.getElementById('m-dd-renter').value=b.renter||'';
   document.getElementById('m-dd-agency').value=b.daedaeAgency||b.agency||'';
   // 보관 거점 버튼 처리
@@ -1276,7 +1289,11 @@ async function saveBed(){
     b.region=document.getElementById('m-region').value.trim();
     b.gu=(document.getElementById('m-gu')||{value:''}).value.trim();
     b.agency=document.getElementById('m-agency').value.trim();
-    b.reportRegion=(document.getElementById('m-report-region')||{value:''}).value||'';
+    const isSuryo = b.status==='수수료대여';
+    const rrVal = isSuryo
+      ? (document.getElementById('m-suryo-region')||{value:''}).value||''
+      : (document.getElementById('m-report-region')||{value:''}).value||'';
+    b.reportRegion = rrVal;
     b.location=b.region||'미기재';
     b.daedaeAgency=''; // 대대여 잔여 데이터 초기화
   } else if(b.status==='대대여'){
@@ -1553,7 +1570,7 @@ function renderReport(){
   const month = parseInt(document.getElementById('rpt-month').value);
   if(!year||!month) return;
 
-  const FIXED_ROWS = {"직접대여": ["서구", "부평구", "미추홀구", "중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "진명TNB"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
+  const FIXED_ROWS = {"직접대여": ["인천 서구", "인천 부평구", "인천 미추홀구", "인천 중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "박종목"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
   const WC_ROWS    = ["복지용구", "대대여", "일반대여"];
   const prevData   = loadPrevMonth(year, month);
 
@@ -1563,7 +1580,7 @@ function renderReport(){
 
   // 이력 기반 이벤트 수집
   const events = [];
-  history.forEach(h=>{
+  history.filter(h=>!h.memo||!h.memo.startsWith('[휠체어]')).forEach(h=>{
     const RENT_ST = ['대여','수수료대여','일반대여','대대여'];
     // 설치 이벤트: installDate 있고 대여계열 상태
     if(h.installDate){
@@ -1591,6 +1608,31 @@ function renderReport(){
 
   const weeks = {1:[],2:[],3:[],4:[],5:[]};
   events.forEach(e=>{ if(weeks[e._week]) weeks[e._week].push(e); });
+
+  // 휠체어 이력도 weeks에 추가
+  history.filter(h=>h.memo&&h.memo.startsWith('[휠체어]')).forEach(h=>{
+    const RENT_ST = ['대여','수수료대여','일반대여','대대여'];
+    if(h.installDate){
+      const instDate = normalizeDate(h.installDate);
+      const wn = getWeekNumber(instDate, year, month);
+      if(wn >= 1 && wn <= 5) weeks[wn].push({
+        date:instDate, _week:wn, bedNum:h.bedNum, barcode:h.barcode||'',
+        renter:h.renter||'', agency:h.agency||'', daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'', memo:h.memo||'',
+        fromStatus:'보관', toStatus: RENT_ST.includes(h.status)?h.status:'대여'
+      });
+    }
+    if(h.returnDate){
+      const retDate = normalizeDate(h.returnDate);
+      const wn = getWeekNumber(retDate, year, month);
+      if(wn >= 1 && wn <= 5) weeks[wn].push({
+        date:retDate, _week:wn, bedNum:h.bedNum, barcode:h.barcode||'',
+        renter:h.renter||'', agency:h.agency||'', daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'', memo:h.memo||'',
+        fromStatus: RENT_ST.includes(h.status)?h.status:'대여', toStatus:'보관'
+      });
+    }
+  });
 
   // 주차 라벨
   const firstOfMonth = new Date(year, month-1, 1);
@@ -1632,7 +1674,7 @@ function renderReport(){
   };
   const groupKey = {
     '직접대여':   e=>e.reportRegion||'',
-    '수수료대여': e=>e.agency||e.renter||'',
+    '수수료대여': e=>e.agency||e.renter||'',  // agency 기준
     '대대여':     e=>e.daedaeAgency||e.agency||'',
     '일반대여':   e=>'일반대여',
   };
@@ -1644,7 +1686,7 @@ function renderReport(){
       // 주차별 집계
       const wData = {};
       validWeeks.forEach(w=>{
-        const we = (weeks[w]||[]).filter(e=>groupMatch[gName](e) && groupKey[gName](e)===rowName);
+        const we = (weeks[w]||[]).filter(e=>!e.memo||!e.memo.startsWith('[휠체어]')).filter(e=>groupMatch[gName](e) && groupKey[gName](e)===rowName);
         wData[w] = {inst:we.filter(isInstall).length, ret:we.filter(isReturn).length};
       });
       const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
@@ -1674,7 +1716,7 @@ function renderReport(){
     // 소계
     html+=`<tr class="rpt-total"><td>소계</td><td><b>${gPrev}</b></td>`;
     validWeeks.forEach(w=>{
-      const we=(weeks[w]||[]).filter(groupMatch[gName]);
+      const we=(weeks[w]||[]).filter(e=>!e.memo||!e.memo.startsWith('[휠체어]')).filter(groupMatch[gName]);
       html+=`<td>${we.filter(isInstall).length>0?'+'+we.filter(isInstall).length:'-'}</td>`;
       html+=`<td>${we.filter(isReturn).length>0?'-'+we.filter(isReturn).length:'-'}</td>`;
     });
