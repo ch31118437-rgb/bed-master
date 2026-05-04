@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.4</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.5</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -1591,6 +1591,31 @@ function renderReport(){
 
   const weeks = {1:[],2:[],3:[],4:[],5:[]};
   events.forEach(e=>{ if(weeks[e._week]) weeks[e._week].push(e); });
+
+  // 휠체어 이력도 weeks에 추가
+  history.filter(h=>h.memo&&h.memo.startsWith('[휠체어]')).forEach(h=>{
+    const RENT_ST = ['대여','수수료대여','일반대여','대대여'];
+    if(h.installDate){
+      const instDate = normalizeDate(h.installDate);
+      const wn = getWeekNumber(instDate, year, month);
+      if(wn >= 1 && wn <= 5) weeks[wn].push({
+        date:instDate, _week:wn, bedNum:h.bedNum, barcode:h.barcode||'',
+        renter:h.renter||'', agency:h.agency||'', daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'', memo:h.memo||'',
+        fromStatus:'보관', toStatus: RENT_ST.includes(h.status)?h.status:'대여'
+      });
+    }
+    if(h.returnDate){
+      const retDate = normalizeDate(h.returnDate);
+      const wn = getWeekNumber(retDate, year, month);
+      if(wn >= 1 && wn <= 5) weeks[wn].push({
+        date:retDate, _week:wn, bedNum:h.bedNum, barcode:h.barcode||'',
+        renter:h.renter||'', agency:h.agency||'', daedaeAgency:h.daedaeAgency||'',
+        reportRegion:h.reportRegion||'', memo:h.memo||'',
+        fromStatus: RENT_ST.includes(h.status)?h.status:'대여', toStatus:'보관'
+      });
+    }
+  });
 
   // 주차 라벨
   const firstOfMonth = new Date(year, month-1, 1);
