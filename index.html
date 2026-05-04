@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.9</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.0</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -383,7 +383,7 @@ body.view-mode tr:hover td{cursor:default}
       <div class="fg"><label class="fl">침대번호</label><input type="number" id="hm-bednum" placeholder="예: 137" oninput="onHistoryBedNumChange()"></div>
       <div class="fg"><label class="fl">바코드</label><input type="text" id="hm-barcode"></div>
       <div class="fg"><label class="fl">구분</label>
-        <select id="hm-status">
+        <select id="hm-status" onchange="onHistoryStatusChange()">
           <option value="대여">대여</option>
           <option value="수수료대여">수수료대여</option>
           <option value="대대여">대대여</option>
@@ -394,7 +394,7 @@ body.view-mode tr:hover td{cursor:default}
       <div class="fg"><label class="fl">대여자</label><input type="text" id="hm-renter"></div>
       <div class="fg"><label class="fl">기관명</label><input type="text" id="hm-agency"></div>
       <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="hm-daedae"></div>
-      <div class="fg"><label class="fl">보고용 지역</label>
+      <div class="fg" id="hm-rregion-wrap"><label class="fl">보고용 지역</label>
         <select id="hm-rregion">
           <option value="">선택 안함</option>
             <option value="인천 서구">인천 서구</option>
@@ -405,6 +405,13 @@ body.view-mode tr:hover td{cursor:default}
             <option value="인천 외">인천 외</option>
             <option value="어울마당">어울마당</option>
             <option value="리하원">리하원</option>
+        </select>
+      </div>
+      <div class="fg" id="hm-suryo-wrap"><label class="fl">보고용 거래처 <span style="color:var(--hint);font-weight:400">(수수료대여)</span></label>
+        <select id="hm-suryo-region">
+          <option value="">선택 안함</option>
+          <option value="박종목">박종목</option>
+          <option value="아리아케어">아리아케어</option>
         </select>
       </div>
       <div class="fg"><label class="fl">설치일 *</label><input type="date" id="hm-install"></div>
@@ -1858,6 +1865,14 @@ async function deleteHistory(id){
 
 let editingHistoryId = null;
 
+function onHistoryStatusChange(){
+  const s = document.getElementById('hm-status').value;
+  const rWrap = document.getElementById('hm-rregion-wrap');
+  const sWrap = document.getElementById('hm-suryo-wrap');
+  if(rWrap) rWrap.style.display = s==='수수료대여' ? 'none' : '';
+  if(sWrap) sWrap.style.display = s==='수수료대여' ? '' : 'none';
+}
+
 function openHistoryModal(h=null){
   editingHistoryId = h ? h.id : null;
   const m = document.getElementById('history-modal');
@@ -1865,6 +1880,8 @@ function openHistoryModal(h=null){
   document.getElementById('hm-bednum').value   = h ? h.bedNum : '';
   document.getElementById('hm-barcode').value  = h ? (h.barcode||'') : '';
   document.getElementById('hm-status').value   = h ? (h.status||'대여') : '대여';
+  onHistoryStatusChange();
+  const hSuryoEl = document.getElementById('hm-suryo-region'); if(hSuryoEl) hSuryoEl.value = h ? (h.reportRegion||'') : '';
   document.getElementById('hm-renter').value   = h ? (h.renter||'') : '';
   document.getElementById('hm-agency').value   = h ? (h.agency||'') : '';
   document.getElementById('hm-daedae').value   = h ? (h.daedaeAgency||'') : '';
@@ -1907,7 +1924,7 @@ async function saveHistory(){
     renter:       document.getElementById('hm-renter').value,
     agency:       document.getElementById('hm-agency').value,
     daedaeAgency: document.getElementById('hm-daedae').value,
-    reportRegion: document.getElementById('hm-rregion').value,
+    reportRegion: document.getElementById('hm-status').value==='수수료대여' ? (document.getElementById('hm-suryo-region').value||'') : (document.getElementById('hm-rregion').value||''),
     installDate,
     returnDate:   document.getElementById('hm-return').value,
     memo:         document.getElementById('hm-memo').value,
