@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.2</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.3</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -180,6 +180,7 @@ body.view-mode tr:hover td{cursor:default}
     <button class="ni admin-only" onclick="switchTab('wc-add')">➕ 휠체어 추가</button>
     <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
     <button class="ni admin-only" onclick="switchTab('settings')">⚙️ 설정</button>
+    <button class="ni" onclick="switchTab('memo')">📝 메모</button>
   </nav>
   <div class="sfooter">
     <div style="margin-top:0">
@@ -683,6 +684,19 @@ body.view-mode tr:hover td{cursor:default}
     </div>
   </div>
 
+
+  <!-- 메모 -->
+  <div id="memo" class="section">
+    <div class="ph"><div class="pt">📝 메모</div><div class="ps">저장 버튼을 누르면 구글 시트에 저장됩니다.</div></div>
+    <div class="card">
+      <textarea id="memo-text" style="width:100%;min-height:400px;border:.5px solid var(--border);border-radius:var(--rs);padding:14px;font-size:14px;line-height:1.7;resize:vertical;font-family:inherit;background:var(--bg);color:var(--fg);outline:none" placeholder="자유롭게 메모하세요..."></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+        <span id="memo-saved-at" style="font-size:12px;color:var(--hint)"></span>
+        <button class="btn btn-p" onclick="saveMemo()">💾 저장</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -807,7 +821,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbwzWQSq3Od45Qox1E2bnvao-kAiWCaUAT7Fqx1Y9FllN6x7UovUD3ZWNXhpjqnx5v8i_Q/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbzHuTaNNz2nrOt7p_9KaNCF3By-4vYGVdEYfM83tLP0GqV8h79wrHTiJ3tE4TjyPFd4Sg/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -862,6 +876,8 @@ async function loadBeds(){
     const res4 = await fetch(sheetUrl + '?action=getPrevMonth', {cache:'no-store'});
     const data4 = await res4.json();
     if(data4 && data4.prevMonth) prevMonthCache = data4.prevMonth;
+    // 메모 불러오기
+    await loadMemo();
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
       wheelchairs = data3.wheelchairs;
     } else if(wheelchairs.length > 0){
@@ -878,7 +894,7 @@ async function loadBeds(){
 document.getElementById('dash-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' 기준';
 
 function switchTab(tab){
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add','settings'][i]===tab));
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add','settings','memo'][i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const tabEl = document.getElementById(tab);
   if(tabEl) tabEl.classList.add('active'); else console.error('탭 없음:', tab);
@@ -889,6 +905,7 @@ function switchTab(tab){
   if(tab==='wc-list'){renderWcList();}
   if(tab==='wc-add'){renderWcAddForm();}
   if(tab==='settings'){renderSettings();}
+  if(tab==='memo'){renderMemo();}
 }
 
 // ── 배지 ──
@@ -2447,6 +2464,47 @@ function applySettingsToDropdowns(){
   window._settingsDirect = appSettings.direct;
   window._settingsSuryo  = appSettings.suryo;
   window._settingsDaedae = appSettings.daedae;
+}
+
+
+// ── 메모 ──────────────────────────────────────────
+let memoContent = '';
+
+async function loadMemo(){
+  if(!sheetUrl) return;
+  try{
+    const res = await fetch(sheetUrl + '?action=getMemo', {cache:'no-store'});
+    const data = await res.json();
+    if(data && data.memo !== undefined){
+      memoContent = data.memo || '';
+      const el = document.getElementById('memo-text');
+      if(el) el.value = memoContent;
+      const savedAt = document.getElementById('memo-saved-at');
+      if(savedAt && data.savedAt) savedAt.textContent = '마지막 저장: ' + data.savedAt;
+    }
+  } catch(e){ console.error('메모 불러오기 실패', e); }
+}
+
+async function saveMemo(){
+  const text = document.getElementById('memo-text').value;
+  const now = new Date().toLocaleString('ko-KR');
+  showToast('저장 중...');
+  try{
+    await fetch(sheetUrl, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({action:'saveMemo', memo: text, savedAt: now})
+    });
+    memoContent = text;
+    document.getElementById('memo-saved-at').textContent = '마지막 저장: ' + now;
+    showToast('✅ 메모 저장 완료');
+  } catch(e){
+    showToast('❌ 저장 실패');
+  }
+}
+
+function renderMemo(){
+  const el = document.getElementById('memo-text');
+  if(el && !el.value && memoContent) el.value = memoContent;
 }
 
 function showToast(msg){
