@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.5</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.6</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -1669,7 +1669,7 @@ function renderReport(){
       // 주차별 집계
       const wData = {};
       validWeeks.forEach(w=>{
-        const we = (weeks[w]||[]).filter(e=>groupMatch[gName](e) && groupKey[gName](e)===rowName);
+        const we = (weeks[w]||[]).filter(e=>!e.memo||!e.memo.startsWith('[휠체어]')).filter(e=>groupMatch[gName](e) && groupKey[gName](e)===rowName);
         wData[w] = {inst:we.filter(isInstall).length, ret:we.filter(isReturn).length};
       });
       const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
@@ -1699,7 +1699,7 @@ function renderReport(){
     // 소계
     html+=`<tr class="rpt-total"><td>소계</td><td><b>${gPrev}</b></td>`;
     validWeeks.forEach(w=>{
-      const we=(weeks[w]||[]).filter(groupMatch[gName]);
+      const we=(weeks[w]||[]).filter(e=>!e.memo||!e.memo.startsWith('[휠체어]')).filter(groupMatch[gName]);
       html+=`<td>${we.filter(isInstall).length>0?'+'+we.filter(isInstall).length:'-'}</td>`;
       html+=`<td>${we.filter(isReturn).length>0?'-'+we.filter(isReturn).length:'-'}</td>`;
     });
