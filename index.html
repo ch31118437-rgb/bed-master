@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.7.0</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.8.3</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -1553,7 +1553,7 @@ function renderReport(){
   const month = parseInt(document.getElementById('rpt-month').value);
   if(!year||!month) return;
 
-  const FIXED_ROWS = {"직접대여": ["서구", "부평구", "미추홀구", "중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "진명TNB"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
+  const FIXED_ROWS = {"직접대여": ["인천 서구", "인천 부평구", "인천 미추홀구", "인천 중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "진명TNB"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
   const WC_ROWS    = ["복지용구", "대대여", "일반대여"];
   const prevData   = loadPrevMonth(year, month);
 
