@@ -168,7 +168,7 @@ body.view-mode tr:hover td{cursor:default}
 </div>
 <div class="layout">
 <aside class="sidebar">
-  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.0</span></div></div>
+  <div class="logo"><div class="co">(주)란달유디케어스</div><div class="app">침대 마스터 <span style="font-size:10px;opacity:0.6;font-weight:400">v2.9.2</span></div></div>
   <nav class="nav">
     <button class="ni active" onclick="switchTab('dashboard')">📊 대시보드</button>
     <button class="ni" onclick="switchTab('list')">📋 침대 목록</button>
@@ -178,6 +178,8 @@ body.view-mode tr:hover td{cursor:default}
     <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
     <button class="ni" onclick="switchTab('wc-list')">🦽 휠체어 목록</button>
     <button class="ni admin-only" onclick="switchTab('wc-add')">➕ 휠체어 추가</button>
+    <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
+    <button class="ni admin-only" onclick="switchTab('settings')">⚙️ 설정</button>
   </nav>
   <div class="sfooter">
     <div style="margin-top:0">
@@ -393,7 +395,11 @@ body.view-mode tr:hover td{cursor:default}
       </div>
       <div class="fg"><label class="fl">대여자</label><input type="text" id="hm-renter"></div>
       <div class="fg"><label class="fl">기관명</label><input type="text" id="hm-agency"></div>
-      <div class="fg"><label class="fl">대대여 거래처</label><input type="text" id="hm-daedae"></div>
+      <div class="fg"><label class="fl">대대여 거래처</label>
+        <select id="hm-daedae">
+          <option value="">선택</option>
+        </select>
+      </div>
       <div class="fg" id="hm-rregion-wrap"><label class="fl">보고용 지역</label>
         <select id="hm-rregion">
           <option value="">선택 안함</option>
@@ -626,6 +632,57 @@ body.view-mode tr:hover td{cursor:default}
     </div>
   </div>
 
+
+  <!-- 설정 -->
+  <div id="settings" class="section">
+    <div class="ph"><div class="pt">⚙️ 설정</div><div class="ps">드롭다운 목록을 관리합니다. 변경하면 즉시 반영됩니다.</div></div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><span class="ct">📍 직접대여 보고용 지역</span></div>
+      <div id="set-direct-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="set-direct-input" placeholder="예: 인천 서구" style="flex:1">
+        <button class="btn btn-p" onclick="addSetting('direct')">추가</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><span class="ct">💰 수수료대여 거래처</span></div>
+      <div id="set-suryo-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="set-suryo-input" placeholder="예: 박종목" style="flex:1">
+        <button class="btn btn-p" onclick="addSetting('suryo')">추가</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><span class="ct">🤝 대대여 거래처</span></div>
+      <div id="set-daedae-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="set-daedae-input" placeholder="예: 대교뉴이프" style="flex:1">
+        <button class="btn btn-p" onclick="addSetting('daedae')">추가</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><span class="ct">📦 보관 거점</span></div>
+      <div id="set-depot-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="set-depot-input" placeholder="예: 탑클린/인천" style="flex:1">
+        <button class="btn btn-p" onclick="addSetting('depot')">추가</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><span class="ct">🦽 휠체어 모델</span></div>
+      <div id="set-wcmodel-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="set-wcmodel-input" placeholder="예: MIKI-W" style="flex:1">
+        <button class="btn btn-p" onclick="addSetting('wcmodel')">추가</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 </div>
 
@@ -701,7 +758,11 @@ body.view-mode tr:hover td{cursor:default}
     <div id="mw-daedae" style="display:none">
       <div class="form-grid">
         <div class="fg"><label class="fl">대여자</label><input type="text" id="m-dd-renter"></div>
-        <div class="fg"><label class="fl">거래처명</label><input type="text" id="m-dd-agency"></div>
+        <div class="fg"><label class="fl">거래처명</label>
+          <select id="m-dd-agency">
+            <option value="">선택</option>
+          </select>
+        </div>
       </div>
     </div>
     <!-- 보관 필드 -->
@@ -817,7 +878,7 @@ async function loadBeds(){
 document.getElementById('dash-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' 기준';
 
 function switchTab(tab){
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add'][i]===tab));
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add','settings'][i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const tabEl = document.getElementById(tab);
   if(tabEl) tabEl.classList.add('active'); else console.error('탭 없음:', tab);
@@ -827,6 +888,7 @@ function switchTab(tab){
   if(tab==='report'){renderReport(); renderHistory();}
   if(tab==='wc-list'){renderWcList();}
   if(tab==='wc-add'){renderWcAddForm();}
+  if(tab==='settings'){renderSettings();}
 }
 
 // ── 배지 ──
@@ -1243,7 +1305,7 @@ function openModal(num){
   const rrEl=document.getElementById('m-report-region'); if(rrEl) rrEl.value=b.reportRegion||'';
   const srEl=document.getElementById('m-suryo-region'); if(srEl) srEl.value=b.reportRegion||'';
   document.getElementById('m-dd-renter').value=b.renter||'';
-  document.getElementById('m-dd-agency').value=b.daedaeAgency||b.agency||'';
+  const ddAgEl=document.getElementById('m-dd-agency'); if(ddAgEl) ddAgEl.value=b.daedaeAgency||b.agency||'';
   // 보관 거점 버튼 처리
   const depots=['탑클린/인천','시일통상/부산','명성크린케어/구미','청정종합관리/청주','용인창고'];
   const isKnown=depots.includes(b.location||'');
@@ -1305,7 +1367,7 @@ async function saveBed(){
     b.daedaeAgency=''; // 대대여 잔여 데이터 초기화
   } else if(b.status==='대대여'){
     b.renter=document.getElementById('m-dd-renter').value.trim();
-    b.daedaeAgency=document.getElementById('m-dd-agency').value.trim();
+    b.daedaeAgency=document.getElementById('m-dd-agency').value;
     b.agency=b.daedaeAgency;
     b.location=b.daedaeAgency||'미기재';
     b.lnum='';b.region='';b.gu='';
@@ -1577,7 +1639,7 @@ function renderReport(){
   const month = parseInt(document.getElementById('rpt-month').value);
   if(!year||!month) return;
 
-  const FIXED_ROWS = {"직접대여": ["인천 서구", "인천 부평구", "인천 미추홀구", "인천 중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "박종목"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
+  const FIXED_ROWS = window._settingsDirect ? {"직접대여": window._settingsDirect, "수수료대여": window._settingsSuryo, "대대여": window._settingsDaedae, "일반대여": ["일반대여"]} : {"직접대여": ["인천 서구", "인천 부평구", "인천 미추홀구", "인천 중구", "인천 기타", "인천 외", "어울마당", "리하원"], "수수료대여": ["아리아케어", "박종목"], "대대여": ["대교뉴이프", "비지팅", "더드림", "바오로노인복지용구", "위드유헬스케어", "두드림노인복지센터", "청정종합관리/청주", "정든어르신/문경", "명성의료기/구미", "인생복지/부산", "거성실버케어", "기타"], "일반대여": ["일반대여"]};
   const WC_ROWS    = ["복지용구", "대대여", "일반대여"];
   const prevData   = loadPrevMonth(year, month);
 
@@ -2279,6 +2341,114 @@ function updateDaysInfo(b){
   el.innerHTML = parts.length ? parts.join(' &nbsp;|&nbsp; ') : '';
 }
 
+
+// ── 설정 관리 ──────────────────────────────────────────
+let appSettings = {
+  direct:  ['인천 서구','인천 부평구','인천 미추홀구','인천 중구','인천 기타','인천 외','어울마당','리하원'],
+  suryo:   ['박종목','아리아케어'],
+  daedae:  ['대교뉴이프','비지팅','더드림','바오로노인복지용구','위드유헬스케어','두드림노인복지센터','청정종합관리/청주','정든어르신/문경','명성의료기/구미','인생복지/부산','거성실버케어','기타'],
+  depot:   ['탑클린/인천','시일통상/부산','명성크린케어/구미','청정종합관리/청주','청라창고','용인창고'],
+  wcmodel: ['MIKI-W','MIKI-W AH','MIKI-PB','MIKI-JTN','SKT-400','MIRAGE7(16D)','MIRAGE-7(22D)-B','MF-22D','기타'],
+};
+
+async function saveSettings(){
+  if(!sheetUrl) return;
+  try{
+    await fetch(sheetUrl, {
+      method:'POST', mode:'no-cors',
+      body: JSON.stringify({action:'saveSettings', settings: appSettings})
+    });
+  } catch(e){ console.error('설정 저장 실패', e); }
+}
+
+function renderSettings(){
+  const types = ['direct','suryo','daedae','depot','wcmodel'];
+  types.forEach(type=>{
+    const el = document.getElementById('set-'+type+'-list');
+    if(!el) return;
+    el.innerHTML = (appSettings[type]||[]).map(item=>`
+      <span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:.5px solid var(--border);border-radius:20px;padding:4px 12px;font-size:13px">
+        ${item}
+        <button onclick="removeSetting('${type}','${item}')" style="background:none;border:none;cursor:pointer;color:var(--warn);font-size:14px;padding:0;line-height:1">✕</button>
+      </span>
+    `).join('');
+  });
+}
+
+async function addSetting(type){
+  const input = document.getElementById('set-'+type+'-input');
+  const val = input.value.trim();
+  if(!val){ showToast('값을 입력해주세요'); return; }
+  if(appSettings[type].includes(val)){ showToast('이미 있어요'); return; }
+  appSettings[type].push(val);
+  input.value = '';
+  renderSettings();
+  applySettingsToDropdowns();
+  await saveSettings();
+  showToast('추가 완료');
+}
+
+async function removeSetting(type, item){
+  if(!confirm('"'+item+'"을 삭제할까요?')) return;
+  appSettings[type] = appSettings[type].filter(v=>v!==item);
+  renderSettings();
+  applySettingsToDropdowns();
+  await saveSettings();
+  showToast('삭제 완료');
+}
+
+function applySettingsToDropdowns(){
+  // 직접대여 보고용 지역
+  const rrSelects = ['m-report-region','hm-rregion'];
+  rrSelects.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">선택 안함</option>' +
+      appSettings.direct.map(v=>`<option value="${v}">${v}</option>`).join('');
+    el.value = cur;
+  });
+
+  // 수수료대여 거래처
+  const suryoSelects = ['m-suryo-region','hm-suryo-region'];
+  suryoSelects.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">선택 안함</option>' +
+      appSettings.suryo.map(v=>`<option value="${v}">${v}</option>`).join('');
+    el.value = cur;
+  });
+
+  // 대대여 거래처 select 업데이트
+  ['m-dd-agency','hm-daedae'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">선택</option>' +
+      appSettings.daedae.map(v=>`<option value="${v}">${v}</option>`).join('');
+    el.value = cur;
+  });
+
+  // 보관 거점 버튼 업데이트
+  ['m-depot-btns','wm-depot-btns'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.innerHTML = appSettings.depot.map(v=>
+      `<button class="depot-btn" onclick="selectDepot(this,'${v}')">${v}</button>`
+    ).join('');
+  });
+
+  // 휠체어 모델 datalist
+  let wcDl = document.getElementById('wc-model-list');
+  if(wcDl) wcDl.innerHTML = appSettings.wcmodel.map(v=>`<option value="${v}">`).join('');
+
+  // 보고서 FIXED_ROWS도 업데이트 (전역 변수로)
+  window._settingsDirect = appSettings.direct;
+  window._settingsSuryo  = appSettings.suryo;
+  window._settingsDaedae = appSettings.daedae;
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
@@ -2323,6 +2493,7 @@ function applyMode(){
 loadBeds();
 renderDashboard();
 initReportDates();
+applySettingsToDropdowns();
 </script>
 </body>
 </html>
