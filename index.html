@@ -291,7 +291,7 @@ body.view-mode tr:hover td{cursor:default}
       </div>
       <div id="list-count" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
       <table>
-        <thead><tr><th>바코드 ↑</th><th>구분</th><th>대여자</th><th>거래처</th><th>장기요양번호</th><th>시/도</th><th>구/군</th><th>기관명</th><th>설치자</th><th>갱신</th></tr></thead>
+        <thead><tr><th>바코드 ↑</th><th>구분</th><th>대여자</th><th>거래처</th><th>장기요양번호</th><th>시/도</th><th>구/군</th><th>기관명</th><th>설치자</th><th onclick="toggleRenewSort()" style="cursor:pointer;user-select:none" id="th-renew">갱신 ↕</th></tr></thead>
         <tbody id="list-body"></tbody>
       </table>
     </div>
@@ -845,6 +845,7 @@ const KEY = 'bed_master_v2';
 let beds = [];
 let editId = null;
 let activeStatusTab = '';
+let sortRenew = ''; // '' | 'asc' | 'desc'
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
@@ -952,12 +953,36 @@ function getRenewState(b){
 }
 
 function renewBadgeHtml(b){
+  if(!CONTRACT_STATUSES.includes(b.status)) return '';
+  if(!b.contractEnd) return '<span style="color:var(--hint);font-size:11px;background:#F5F5F5;padding:2px 7px;border-radius:20px">미등록</span>';
   const s = getRenewState(b);
-  if(!s) return '';
+  if(!s){
+    // 유효 — 남은 일수 표시
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end = new Date(b.contractEnd); end.setHours(0,0,0,0);
+    const diff = Math.floor((end - today)/86400000);
+    return `<span style="font-size:11px;color:var(--accent);background:#EAF3DE;padding:2px 8px;border-radius:20px;border:.5px solid #BDE0A0">D-${diff}</span>`;
+  }
   if(s.type === 'overdue'){
-    return `<span class="renew-badge renew-overdue">🔴 만료 (${Math.abs(s.days)}일 경과)</span>`;
+    return `<span class="renew-badge renew-overdue">🔴 ${Math.abs(s.days)}일 경과</span>`;
   }
   return `<span class="renew-badge renew-soon">🟡 D-${s.days}</span>`;
+}
+
+function toggleRenewSort(){
+  sortRenew = sortRenew === 'asc' ? 'desc' : sortRenew === 'desc' ? '' : 'asc';
+  const th = document.getElementById('th-renew');
+  if(th) th.textContent = '갱신 ' + (sortRenew==='asc'?'↑':sortRenew==='desc'?'↓':'↕');
+  renderList();
+}
+
+// 계약 만료일 기준 정렬 키 (숫자로 변환, 미등록은 맨 뒤)
+function renewSortKey(b){
+  if(!CONTRACT_STATUSES.includes(b.status)) return 99999;
+  if(!b.contractEnd) return 99998;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(b.contractEnd); end.setHours(0,0,0,0);
+  return Math.floor((end - today)/86400000); // 음수 = 경과, 양수 = 남은일
 }
 
 function updateContractStatus(){
@@ -1232,14 +1257,22 @@ function renderList(){
     if(fRegion && !(b.region||'').toLowerCase().includes(fRegion)) return false;
     return true;
   });
-  // 바코드 오름차순 정렬 (미등록은 맨 뒤)
-  rows.sort((a,b)=>{
-    const av=String(a.barcode||''), bv=String(b.barcode||'');
-    if(!av&&!bv) return (a.num||0)-(b.num||0);
-    if(!av) return 1;
-    if(!bv) return -1;
-    return av.localeCompare(bv, 'ko', {numeric:true});
-  });
+  // 정렬
+  if(sortRenew){
+    rows.sort((a,b)=>{
+      const ak=renewSortKey(a), bk=renewSortKey(b);
+      return sortRenew==='asc' ? ak-bk : bk-ak;
+    });
+  } else {
+    // 기본: 바코드 오름차순 (미등록은 맨 뒤)
+    rows.sort((a,b)=>{
+      const av=String(a.barcode||''), bv=String(b.barcode||'');
+      if(!av&&!bv) return (a.num||0)-(b.num||0);
+      if(!av) return 1;
+      if(!bv) return -1;
+      return av.localeCompare(bv, 'ko', {numeric:true});
+    });
+  }
   document.getElementById('list-count').textContent=`${rows.length}대 표시 (전체 ${beds.length}대)`;
   const getRenter=b=>b.status==='보관'?'-':(b.renter||'-');
   const getAgency=b=>b.status==='대대여'?(b.daedaeAgency||b.agency||'-'):(b.agency||'-');
