@@ -193,6 +193,7 @@ body.view-mode tr:hover td{cursor:default}
     <button class="ni" onclick="switchTab('log')">📝 수정 로그</button>
     <button class="ni admin-only" onclick="switchTab('report')">📊 주간/월간 보고서</button>
     <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
+    <button class="ni" onclick="switchTab('wc-dashboard')">📊 휠체어 현황</button>
     <button class="ni" onclick="switchTab('wc-list')">🦽 휠체어 목록</button>
     <button class="ni admin-only" onclick="switchTab('wc-add')">➕ 휠체어 추가</button>
     <div style="height:.5px;background:var(--border);margin:8px 16px"></div>
@@ -490,6 +491,20 @@ body.view-mode tr:hover td{cursor:default}
   </div>
 
 
+  <!-- 휠체어 대시보드 -->
+  <div id="wc-dashboard" class="section" style="display:none">
+    <div class="ph"><div class="pt">휠체어 현황</div><div class="ps">전체 휠체어 운용 현황</div></div>
+    <div id="wc-metrics" class="metrics"></div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="ch"><span class="ct">📍 보관 거점</span></div>
+      <div id="wc-loc-grid" class="loc-grid"></div>
+    </div>
+    <div class="card">
+      <div class="ch"><span class="ct">🏢 대대여 거래처</span></div>
+      <div id="wc-agency-grid" class="loc-grid"></div>
+    </div>
+  </div>
+
   <!-- 휠체어 목록 -->
   <div id="wc-list" class="section">
     <div class="ph"><div class="pt">휠체어 목록</div><div class="ps">휠체어 클릭 → 상세보기 및 수정</div></div>
@@ -540,7 +555,7 @@ body.view-mode tr:hover td{cursor:default}
       <div id="wc-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
       <div style="overflow-x:auto">
         <table class="tbl">
-          <thead><tr><th>바코드</th><th>모델</th><th>구분</th><th>대여자</th><th>거래처</th><th>장기요양번호</th><th>시/도</th><th>구/군</th><th>기관명</th><th>설치자</th></tr></thead>
+          <thead><tr><th>바코드</th><th>모델</th><th>구분</th><th>대여자</th><th>거래처</th><th>장기요양번호</th><th>시/도</th><th>구/군</th><th>기관명</th><th>설치자</th><th onclick="toggleWcRenewSort()" style="cursor:pointer;user-select:none" id="th-wc-renew">갱신 ↕</th></tr></thead>
           <tbody id="wc-tbody"></tbody>
         </table>
       </div>
@@ -641,6 +656,17 @@ body.view-mode tr:hover td{cursor:default}
       <div class="form-grid" style="margin-bottom:12px">
         <div class="fg"><label class="fl">설치일 <button type="button" onclick="document.getElementById('wm-install-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-install-date"></div>
         <div class="fg"><label class="fl">회수일 <button type="button" onclick="document.getElementById('wm-return-date').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕ 삭제</button></label><input type="date" id="wm-return-date"></div>
+      </div>
+
+      <!-- 휠체어 계약 관리 (대여/일반대여만) -->
+      <div id="wm-contract" style="display:none">
+        <div class="divider"></div>
+        <div class="section-label">📄 계약 관리</div>
+        <div class="form-grid" style="margin-bottom:8px">
+          <div class="fg"><label class="fl">계약 시작일 <button type="button" onclick="document.getElementById('wm-contract-start').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕</button></label><input type="date" id="wm-contract-start" oninput="updateWcContractStatus()"></div>
+          <div class="fg"><label class="fl">계약 만료일 <button type="button" onclick="document.getElementById('wm-contract-end').value=''" style="margin-left:6px;font-size:10px;color:var(--warn);background:none;border:none;cursor:pointer;padding:0">✕</button></label><input type="date" id="wm-contract-end" oninput="updateWcContractStatus()"></div>
+        </div>
+        <div id="wm-contract-status" style="font-size:12px;margin-bottom:4px"></div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:8px">
@@ -846,6 +872,64 @@ let beds = [];
 let editId = null;
 let activeStatusTab = '';
 let sortRenew = ''; // '' | 'asc' | 'desc'
+let sortWcRenew = ''; // '' | 'asc' | 'desc'
+const WC_CONTRACT_STATUSES = ['대여','일반대여'];
+
+function getWcRenewState(w){
+  if(!WC_CONTRACT_STATUSES.includes(w.status)) return null;
+  if(!w.contractEnd) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(w.contractEnd); end.setHours(0,0,0,0);
+  const diffDays = Math.floor((end - today) / 86400000);
+  if(diffDays <= 30) return {type: diffDays < 0 ? 'overdue' : 'soon', days: diffDays};
+  return null;
+}
+
+function wcRenewBadgeHtml(w){
+  if(!WC_CONTRACT_STATUSES.includes(w.status)) return '';
+  if(!w.contractEnd) return '<span style="color:var(--hint);font-size:11px;background:#F5F5F5;padding:2px 7px;border-radius:20px">미등록</span>';
+  const s = getWcRenewState(w);
+  if(!s){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end = new Date(w.contractEnd); end.setHours(0,0,0,0);
+    const diff = Math.floor((end - today)/86400000);
+    return `<span style="font-size:11px;color:var(--accent);background:#EAF3DE;padding:2px 8px;border-radius:20px;border:.5px solid #BDE0A0">D-${diff}</span>`;
+  }
+  if(s.type==='overdue') return `<span class="renew-badge renew-overdue">🔴 ${Math.abs(s.days)}일 경과</span>`;
+  return `<span class="renew-badge renew-soon">🟡 D-${s.days}</span>`;
+}
+
+function wcRenewSortKey(w){
+  if(!WC_CONTRACT_STATUSES.includes(w.status)) return 99999;
+  if(!w.contractEnd) return 99998;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(w.contractEnd); end.setHours(0,0,0,0);
+  return Math.floor((end - today)/86400000);
+}
+
+function toggleWcRenewSort(){
+  sortWcRenew = sortWcRenew==='asc' ? 'desc' : sortWcRenew==='desc' ? '' : 'asc';
+  const th = document.getElementById('th-wc-renew');
+  if(th) th.textContent = '갱신 '+(sortWcRenew==='asc'?'↑':sortWcRenew==='desc'?'↓':'↕');
+  renderWcList();
+}
+
+function updateWcContractStatus(){
+  const endVal = document.getElementById('wm-contract-end').value;
+  const statusEl = document.getElementById('wm-contract-status');
+  if(!statusEl) return;
+  if(!endVal){statusEl.textContent='';return;}
+  const today = new Date(); today.setHours(0,0,0,0);
+  const end = new Date(endVal); end.setHours(0,0,0,0);
+  const diff = Math.floor((end - today)/86400000);
+  if(diff < 0){
+    statusEl.innerHTML = `<span style="color:var(--warn);font-weight:600">⚠️ 만료일이 ${Math.abs(diff)}일 지났습니다 — 갱신이 필요합니다</span>`;
+  } else if(diff <= 30){
+    statusEl.innerHTML = `<span style="color:var(--amber);font-weight:600">⏰ 만료까지 D-${diff} — 갱신 알림 대상입니다</span>`;
+  } else {
+    statusEl.innerHTML = `<span style="color:var(--accent)">✓ 계약 유효 (${diff}일 남음)</span>`;
+  }
+}
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
@@ -922,7 +1006,7 @@ async function loadBeds(){
 document.getElementById('dash-date').textContent=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' 기준';
 
 function switchTab(tab){
-  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','wc-list','wc-add','settings','memo'][i]===tab));
+  document.querySelectorAll('.ni').forEach((el,i)=>el.classList.toggle('active',['dashboard','list','add','log','report','history','wc-dashboard','wc-list','wc-add','settings','memo'][i]===tab));
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   const tabEl = document.getElementById(tab);
   if(tabEl) tabEl.classList.add('active'); else console.error('탭 없음:', tab);
@@ -931,6 +1015,7 @@ function switchTab(tab){
   if(tab==='log'){renderLog();loadLogSheetUrl();}
   if(tab==='report'){renderReport(); renderHistory();}
   if(tab==='wc-list'){renderWcList();}
+  if(tab==='wc-dashboard'){renderWcDashboard();}
   if(tab==='wc-add'){renderWcAddForm();}
   if(tab==='settings'){renderSettings();}
   if(tab==='memo'){renderMemo();}
@@ -1010,6 +1095,14 @@ function statusBadge(b){
   if(b.status==='대대여') return '<span class="badge b-purple">대대여</span>';
   if(b.status==='보관') return '<span class="badge b-amber">보관</span>';
   return '<span class="badge b-gray">기타</span>';
+}
+
+function wcStatusBadge(w){
+  if(w.status==='대여') return '<span class="badge b-green">대여</span>';
+  if(w.status==='일반대여') return '<span class="badge" style="background:#FEF3C7;color:#92400E">일반대여</span>';
+  if(w.status==='대대여') return '<span class="badge b-purple">대대여</span>';
+  if(w.status==='보관') return '<span class="badge b-amber">보관</span>';
+  return '<span class="badge b-gray">'+w.status+'</span>';
 }
 
 // ── 대시보드 ──
@@ -2213,6 +2306,58 @@ async function syncWcToSheet(){
   } catch(e){ console.error('휠체어 저장 실패', e); }
 }
 
+function renderWcDashboard(){
+  const total   = wheelchairs.length;
+  const rental  = wheelchairs.filter(w=>w.status==='대여').length;
+  const ilban   = wheelchairs.filter(w=>w.status==='일반대여').length;
+  const daedae  = wheelchairs.filter(w=>w.status==='대대여').length;
+  const storage = wheelchairs.filter(w=>w.status==='보관').length;
+  const active  = rental + ilban + daedae;
+  const rate    = total > 0 ? Math.round(active/total*100) : 0;
+  const dai     = '대';
+
+  const renewWcs = wheelchairs.filter(w=>getWcRenewState(w)!==null);
+  const renewCount = renewWcs.length;
+  const renewTooltip = renewWcs.map(w=>{
+    const s=getWcRenewState(w);
+    const label=s.type==='overdue'?`만료 ${Math.abs(s.days)}일 경과`:`D-${s.days}`;
+    return `${w.renter||'이름없음'} (${label})`;
+  }).join('<br>');
+
+  document.getElementById('wc-metrics').innerHTML=`
+    <div class="metric"><div class="ml">전체</div><div class="mv blue">${total}<span style="font-size:14px;font-weight:400">${dai}</span></div><div class="ms">등록 휠체어</div></div>
+    <div class="metric"><div class="ml">대여중</div><div class="mv ok">${rental}<span style="font-size:14px;font-weight:400">${dai}</span></div><div class="ms">본사 직접</div></div>
+    <div class="metric"><div class="ml">일반대여</div><div class="mv" style="color:#92400E">${ilban}<span style="font-size:14px;font-weight:400">${dai}</span></div><div class="ms">일반 대여</div></div>
+    <div class="metric"><div class="ml">대대여</div><div class="mv purple">${daedae}<span style="font-size:14px;font-weight:400">${dai}</span></div><div class="ms">거래처 청구</div></div>
+    <div class="metric"><div class="ml">보관중</div><div class="mv amber">${storage}<span style="font-size:14px;font-weight:400">${dai}</span></div><div class="ms">창고/거점</div></div>
+    <div class="metric"><div class="ml">가동률</div><div class="mv ok">${rate}<span style="font-size:14px;font-weight:400">%</span></div><div class="ms">대여+대대여</div></div>
+    <div class="metric renew-tooltip-wrap" style="grid-column:1;border-color:${renewCount>0?'#F5B7B1':'var(--border)'};background:${renewCount>0?'#FEF6F5':'var(--surface)'}">
+      <div class="ml" style="color:${renewCount>0?'#C0392B':'var(--hint)'}">갱신필요</div>
+      <div class="mv" style="color:${renewCount>0?'#C0392B':'var(--hint)'}">${renewCount}<span style="font-size:14px;font-weight:400">${dai}</span></div>
+      <div class="ms" style="color:${renewCount>0?'#E74C3C':'var(--hint)'}">만료일 30일 이내</div>
+      ${renewCount>0?`<div class="renew-tooltip">${renewTooltip}</div>`:''}
+    </div>
+  `;
+
+  // 보관 거점
+  const locMap={};
+  wheelchairs.filter(w=>w.status==='보관').forEach(w=>{
+    const l=w.location||'미기재'; locMap[l]=(locMap[l]||0)+1;
+  });
+  document.getElementById('wc-loc-grid').innerHTML=Object.entries(locMap).map(([l,c])=>
+    `<div class="loc-card"><div class="loc-name">${l}</div><div class="loc-count">${c}</div><div class="loc-sub">대 보관</div></div>`
+  ).join('')||'<div class="empty">보관 데이터 없음</div>';
+
+  // 대대여 거래처
+  const agMap={};
+  wheelchairs.filter(w=>w.status==='대대여').forEach(w=>{
+    const a=w.daedaeAgency||w.agency||'미기재'; agMap[a]=(agMap[a]||0)+1;
+  });
+  document.getElementById('wc-agency-grid').innerHTML=Object.entries(agMap).map(([a,c])=>
+    `<div class="loc-card"><div class="loc-name">${a}</div><div class="loc-count">${c}</div><div class="loc-sub">대 대대여</div></div>`
+  ).join('')||'<div class="empty">대대여 데이터 없음</div>';
+}
+
 function renderWcList(){
   const status  = document.getElementById('wf-status').value;
   const model   = document.getElementById('wf-model').value;
@@ -2227,25 +2372,33 @@ function renderWcList(){
   if(renter)  list = list.filter(w=>(w.renter||'').toLowerCase().includes(renter)||(w.agency||'').toLowerCase().includes(renter));
   if(lnum)    list = list.filter(w=>(w.lnum||'').toLowerCase().includes(lnum));
 
+  // 정렬
+  if(sortWcRenew){
+    list.sort((a,b)=>sortWcRenew==='asc' ? wcRenewSortKey(a)-wcRenewSortKey(b) : wcRenewSortKey(b)-wcRenewSortKey(a));
+  } else {
+    list.sort((a,b)=>(a.barcode||'').localeCompare(b.barcode||'','ko',{numeric:true}));
+  }
+
   document.getElementById('wc-count').textContent = list.length+'대 표시 (전체 '+wheelchairs.length+'대)';
 
   const tbody = document.getElementById('wc-tbody');
   if(!list.length){
-    tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--hint);padding:24px">해당하는 휠체어가 없습니다</td></tr>';
+    tbody.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--hint);padding:24px">해당하는 휠체어가 없습니다</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(w=>`
     <tr onclick="openWcModal(${w.id})" style="cursor:pointer">
-      <td>${w.barcode||'-'}</td>
-      <td>${w.model||'-'}</td>
-      <td><span class="badge ${w.status==='대여'?'rent':w.status==='대대여'?'dd':w.status==='보관'?'stor':''}">${w.status}</span></td>
-      <td>${w.renter||'-'}</td>
-      <td>${w.daedaeAgency||'-'}</td>
-      <td>${w.lnum||'-'}</td>
-      <td>${w.region||'-'}</td>
-      <td>${w.gu||'-'}</td>
-      <td>${w.agency||'-'}</td>
-      <td>${w.installer||'-'}</td>
+      <td style="font-family:monospace;font-size:13px;font-weight:600;color:var(--accent)">${w.barcode||'<span style="color:var(--hint);font-size:11px">미등록</span>'}</td>
+      <td style="font-size:12px">${w.model||'-'}</td>
+      <td>${wcStatusBadge(w)}</td>
+      <td style="font-weight:500">${w.status==='보관'?'-':(w.renter||'-')}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.status==='대대여'?(w.daedaeAgency||'-'):'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.lnum||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.region||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.gu||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.agency||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${w.installer||'-'}</td>
+      <td>${wcRenewBadgeHtml(w)||'<span style="color:var(--hint);font-size:11px">-</span>'}</td>
     </tr>
   `).join('');
 }
@@ -2292,6 +2445,8 @@ function onWcStatusChange(){
   document.getElementById('wm-rental').style.display      = ['대여','일반대여'].includes(st) ? '' : 'none';
   document.getElementById('wm-daedae-wrap').style.display = st==='대대여' ? '' : 'none';
   document.getElementById('wm-storage').style.display     = st==='보관' ? '' : 'none';
+  const contractWrap = document.getElementById('wm-contract');
+  if(contractWrap) contractWrap.style.display = WC_CONTRACT_STATUSES.includes(st) ? 'block' : 'none';
 }
 
 function selectWcDepot(btn, val){
@@ -2326,6 +2481,13 @@ function openWcModal(id){
   });
   document.getElementById('wm-depot-val').value = w.location||'';
   onWcStatusChange();
+  // 계약 필드
+  const contractWrap = document.getElementById('wm-contract');
+  if(contractWrap && WC_CONTRACT_STATUSES.includes(w.status)){
+    document.getElementById('wm-contract-start').value = w.contractStart||'';
+    document.getElementById('wm-contract-end').value   = w.contractEnd||'';
+    updateWcContractStatus();
+  }
   document.getElementById('wc-modal').style.display='flex';
 }
 
@@ -2366,6 +2528,11 @@ async function saveWc(){
   }
   w.installDate = document.getElementById('wm-install-date').value;
   w.returnDate  = document.getElementById('wm-return-date').value;
+  // 계약 날짜 저장
+  if(WC_CONTRACT_STATUSES.includes(w.status)){
+    w.contractStart = document.getElementById('wm-contract-start').value||'';
+    w.contractEnd   = document.getElementById('wm-contract-end').value||'';
+  }
 
   // 휠체어 이력 자동 추가 (상태 변경 시)
   const RENT_WC = ['대여','대대여','일반대여'];
