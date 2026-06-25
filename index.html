@@ -279,7 +279,7 @@ body.view-mode tr:hover td{cursor:default}
               <option value="기타">기타</option>
             </select>
           </div>
-          <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">기관명</div>
+          <div><div id="f-agency-label" style="font-size:11px;color:var(--hint);margin-bottom:4px">기관명</div>
             <select id="f-agency" onchange="renderList()" style="width:100%"><option value="">전체</option></select>
           </div>
           <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">설치자</div>
@@ -1277,7 +1277,6 @@ function setStatusTab(val){ activeStatusTab=val; renderList(); }
 function onStatusChange(){
   const s = document.getElementById('f-status').value;
   const isStorage = (s === '보관');
-  // 지역 드롭다운 ↔ 거점 드롭다운 토글
   document.getElementById('loc-wrap-region').style.display = isStorage ? 'none' : 'block';
   document.getElementById('loc-wrap-depot').style.display = isStorage ? 'block' : 'none';
   if(isStorage){
@@ -1286,14 +1285,10 @@ function onStatusChange(){
     const depotEl = document.getElementById('f-depot');
     if(depotEl) depotEl.value='';
   }
-  // 지역 드롭다운 다시 채우기
-  const locs=[...new Set(
-    beds.filter(b=> s ? b.status===s : b.status!=='보관')
-        .map(b=>b.region).filter(Boolean)
-  )].sort();
-  const locSel = document.getElementById('f-loc');
-  if(locSel) locSel.innerHTML='<option value="">전체</option>'+locs.map(l=>`<option value="${l}">${l}</option>`).join('');
-  renderList();
+  // f-agency 초기화 후 재구성 (대대여 ↔ 일반 전환 시)
+  const agencyEl = document.getElementById('f-agency');
+  if(agencyEl) agencyEl.value='';
+  populateFilters();
 }
 
 
@@ -1307,14 +1302,25 @@ function clearFilters(){
 }
 
 function populateFilters(){
-  // 현재 구분에 맞게 지역 드롭다운 채우기
   const curS = document.getElementById('f-status')?document.getElementById('f-status').value:'';
+  const isDaedae = curS === '대대여';
+
+  // 라벨 변경
+  const agencyLabel = document.getElementById('f-agency-label');
+  if(agencyLabel) agencyLabel.textContent = isDaedae ? '거래처명' : '기관명';
+
+  // 기관명 or 거래처명 목록
+  let agencies;
+  if(isDaedae){
+    agencies = [...new Set(beds.filter(b=>b.status==='대대여').map(b=>b.daedaeAgency).filter(Boolean))].sort();
+  } else {
+    agencies = [...new Set(beds.filter(b=>['대여','일반대여','수수료대여'].includes(b.status)).map(b=>b.agency).filter(Boolean))].sort();
+  }
+
   const locs=[...new Set(
     beds.filter(b=> curS ? b.status===curS : b.status!=='보관')
         .map(b=>b.region).filter(Boolean)
   )].sort();
-  // 기관명: 대여/일반대여만
-  const agencies=[...new Set(beds.filter(b=>['대여','일반대여'].includes(b.status)).map(b=>b.agency).filter(Boolean))].sort();
   const installers=[...new Set(beds.map(b=>b.installer).filter(Boolean))].sort();
   const setOpts=(id,arr)=>{
     const sel=document.getElementById(id);
@@ -1346,7 +1352,7 @@ function renderList(){
     if(fLnum && !(b.lnum||'').toLowerCase().includes(fLnum)) return false;
     if(fLoc && b.region!==fLoc) return false;
     if(fDepot && b.location!==fDepot) return false;
-    if(fAgency && b.agency!==fAgency) return false;
+    if(fAgency && fStatus==='대대여' ? b.daedaeAgency!==fAgency : fAgency && b.agency!==fAgency) return false;
     if(fInstaller && b.installer!==fInstaller) return false;
     if(fRegion && !(b.region||'').toLowerCase().includes(fRegion)) return false;
     return true;
