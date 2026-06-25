@@ -934,7 +934,7 @@ function updateWcContractStatus(){
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbyZ7CbU8pDx6mieWGCC6gYgNoluHydwhJ2O8ICSf2QneER4Wkt89U0Wq4RvbADixPQ/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbxNWElViVTY_nXJxU2D-3dcqK-ssOIVddJEQcLqKAS3Ymt6y07KOz2j17yTGyrqzw/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -990,7 +990,7 @@ async function loadBeds(){
     const data4 = await res4.json();
     if(data4 && data4.prevMonth) prevMonthCache = data4.prevMonth;
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
-      wheelchairs = data3.wheelchairs;
+      wheelchairs = data3.wheelchairs.map(w=>({...w, contractStart: w.contractStart||'', contractEnd: w.contractEnd||''}));
     } else if(wheelchairs.length > 0){
       // 시트 비어있으면 초기 데이터 업로드
       await syncWcToSheet();
