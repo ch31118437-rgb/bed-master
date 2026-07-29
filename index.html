@@ -886,6 +886,7 @@ async function loadBeds(){
       if(s.daedae  && s.daedae.length)  appSettings.daedae  = s.daedae;
       if(s.depot   && s.depot.length)   appSettings.depot   = s.depot;
       if(s.wcmodel && s.wcmodel.length) appSettings.wcmodel = s.wcmodel;
+      applySettingsToDropdowns();
     }
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
       wheelchairs = data3.wheelchairs;
