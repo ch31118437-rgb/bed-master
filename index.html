@@ -1777,6 +1777,14 @@ function renderReport(){
     '일반대여':   e=>'일반대여',
   };
 
+  // 현재실적 계산용 beds 실제 카운트
+  const bedCurCount = {
+    '직접대여':   rowName => beds.filter(b=>b.status==='대여'   && (b.reportRegion||'')=== rowName).length,
+    '수수료대여': rowName => beds.filter(b=>b.status==='수수료대여' && (b.agency||b.renter||'')=== rowName).length,
+    '대대여':     rowName => beds.filter(b=>b.status==='대대여' && (b.daedaeAgency||b.agency||'')=== rowName).length,
+    '일반대여':   rowName => beds.filter(b=>b.status==='일반대여').length,
+  };
+
   Object.entries(FIXED_ROWS).forEach(([gName, rows])=>{
     let gPrev=0, gInst=0, gRet=0;
     const rowData = rows.map(rowName=>{
@@ -1789,12 +1797,15 @@ function renderReport(){
       });
       const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
       const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
-      const cur = prev + totalInst - totalRet;
+      // 현재실적 = beds 실제 카운트
+      const cur = bedCurCount[gName] ? bedCurCount[gName](rowName) : prev + totalInst - totalRet;
       gPrev+=prev; gInst+=totalInst; gRet+=totalRet;
       return {rowName, prev, wData, totalInst, totalRet, cur};
     });
 
-    const gCur = gPrev + gInst - gRet;
+    // 소계 현재실적도 beds 기준
+    const gCurActual = rows.reduce((acc, rowName) => acc + (bedCurCount[gName] ? bedCurCount[gName](rowName) : 0), 0);
+    const gCur = gCurActual;
     grandPrev+=gPrev; grandInstTotal+=gInst; grandRetTotal+=gRet; grandCur+=gCur;
 
     rowData.forEach((row,i)=>{
@@ -1822,13 +1833,14 @@ function renderReport(){
   });
 
   // 합계
+  const grandCurActual = beds.filter(b=>['대여','수수료대여','대대여','일반대여'].includes(b.status)).length;
   html+=`<tr class="rpt-total" style="font-size:13px"><td colspan="2">합계</td><td><b>${grandPrev}</b></td>`;
   validWeeks.forEach(w=>{
     const wi=events.filter(e=>e._week===w).filter(isInstall).length;
     const wr=events.filter(e=>e._week===w).filter(isReturn).length;
     html+=`<td>${wi>0?'+'+wi:'-'}</td><td>${wr>0?'-'+wr:'-'}</td>`;
   });
-  html+=`<td><b>${grandCur}</b></td></tr>`;
+  html+=`<td><b>${grandCurActual}</b></td></tr>`;
   html+=`</tbody></table></div>`;
 
   // 휠체어 섹션
@@ -1852,9 +1864,14 @@ function renderReport(){
     '일반대여': h => h.status==='일반대여',
   };
 
+  const wcCurCount = {
+    '복지용구': () => wheelchairs.filter(w=>w.status==='대여').length,
+    '대대여':   () => wheelchairs.filter(w=>w.status==='대대여').length,
+    '일반대여': () => wheelchairs.filter(w=>w.status==='일반대여').length,
+  };
+
   WC_ROWS.forEach(rowName=>{
     const prev = prevData['wc_'+rowName]||0;
-    // 휠체어 이력에서 해당 구분 집계
     const wData = {};
     validWeeks.forEach(w=>{
       const we = (weeks[w]||[]).filter(e=>{
@@ -1865,7 +1882,8 @@ function renderReport(){
     });
     const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
     const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
-    const cur = prev + totalInst - totalRet;
+    // 현재실적 = wheelchairs 실제 카운트
+    const cur = wcCurCount[rowName] ? wcCurCount[rowName]() : prev + totalInst - totalRet;
     wcGrandPrev+=prev; wcGrandCur+=cur;
     html+=`<tr><td style="text-align:left">${rowName}</td>`;
     html+=`<td><input type="number" value="${prev}" min="0"
@@ -1878,9 +1896,10 @@ function renderReport(){
     });
     html+=`<td><b>${cur}</b></td></tr>`;
   });
+  const wcGrandCurActual = wheelchairs.filter(w=>['대여','대대여','일반대여'].includes(w.status)).length;
   html+=`<tr class="rpt-total"><td>합계</td><td><b>${wcGrandPrev}</b></td>`;
   validWeeks.forEach(()=>html+=`<td>-</td><td>-</td>`);
-  html+=`<td><b>${wcGrandCur}</b></td></tr>`;
+  html+=`<td><b>${wcGrandCurActual}</b></td></tr>`;
   html+=`</tbody></table></div>`;
 
   // 재고
