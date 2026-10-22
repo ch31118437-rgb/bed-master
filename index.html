@@ -253,12 +253,6 @@ body.view-mode tr:hover td{cursor:default}
           <div id="loc-wrap-depot" style="display:none"><div style="font-size:11px;color:var(--hint);margin-bottom:4px">거점</div>
             <select id="f-depot" onchange="renderList()" style="width:100%">
               <option value="">전체</option>
-              <option value="탑클린/인천">탑클린/인천</option>
-              <option value="시일통상/부산">시일통상/부산</option>
-              <option value="명성크린케어/구미">명성크린케어/구미</option>
-              <option value="청정종합관리/청주">청정종합관리/청주</option>
-              <option value="용인창고">용인창고</option>
-              <option value="기타">기타</option>
             </select>
           </div>
           <div><div style="font-size:11px;color:var(--hint);margin-bottom:4px">기관명</div>
@@ -821,7 +815,7 @@ let activeStatusTab = '';
 
 // ── 구글 시트 연동 ─────────────────────────────────
 const SHEET_URL_KEY = 'bed_sheet_url_v1';
-let sheetUrl = 'https://script.google.com/macros/s/AKfycbxXu6EGi1Aj6wfLoaghvIfTYQDWB2rVGDOoM6DglyeuZZcHBW6KAHLdeEkAUKP61kY/exec';
+let sheetUrl = 'https://script.google.com/macros/s/AKfycbza3Ut9WLMAEvshRezmTgxjtUqgndnjHbSAYWOYJ2Li_gXIG4haDS7QfeFVeshmzZrApQ/exec';
 
 function saveBeds(){ /* 시트가 메인 — 브라우저 저장 안함 */ }
 
@@ -876,18 +870,6 @@ async function loadBeds(){
     const res4 = await fetch(sheetUrl + '?action=getPrevMonth', {cache:'no-store'});
     const data4 = await res4.json();
     if(data4 && data4.prevMonth) prevMonthCache = data4.prevMonth;
-    // 설정 불러오기
-    const res5 = await fetch(sheetUrl + '?action=getSettings', {cache:'no-store'});
-    const data5 = await res5.json();
-    if(data5 && data5.settings){
-      const s = data5.settings;
-      if(s.direct  && s.direct.length)  appSettings.direct  = s.direct;
-      if(s.suryo   && s.suryo.length)   appSettings.suryo   = s.suryo;
-      if(s.daedae  && s.daedae.length)  appSettings.daedae  = s.daedae;
-      if(s.depot   && s.depot.length)   appSettings.depot   = s.depot;
-      if(s.wcmodel && s.wcmodel.length) appSettings.wcmodel = s.wcmodel;
-      applySettingsToDropdowns();
-    }
     if(data3 && data3.wheelchairs && data3.wheelchairs.length > 0){
       wheelchairs = data3.wheelchairs;
     } else if(wheelchairs.length > 0){
@@ -1134,6 +1116,8 @@ function populateFilters(){
   setOpts('f-loc',locs);
   setOpts('f-agency',agencies);
   setOpts('f-installer',installers);
+  // 거점 드롭다운 - appSettings.depot 기준으로 동적 생성
+  setOpts('f-depot', appSettings.depot||[]);
 }
 function populateLocFilter(){ populateFilters(); }
 
@@ -1336,7 +1320,7 @@ function openModal(num){
   document.getElementById('m-dd-renter').value=b.renter||'';
   const ddAgEl=document.getElementById('m-dd-agency'); if(ddAgEl) ddAgEl.value=b.daedaeAgency||b.agency||'';
   // 보관 거점 버튼 처리
-  const depots=['탑클린/인천','시일통상/부산','명성크린케어/구미','청정종합관리/청주','용인창고'];
+  const depots=appSettings.depot||[];
   const isKnown=depots.includes(b.location||'');
   document.getElementById('m-depot-val').value=isKnown?(b.location||''):'__other__';
   document.querySelectorAll('#m-depot-btns .depot-btn').forEach(btn=>{
@@ -1777,14 +1761,6 @@ function renderReport(){
     '일반대여':   e=>'일반대여',
   };
 
-  // 현재실적 계산용 beds 실제 카운트
-  const bedCurCount = {
-    '직접대여':   rowName => beds.filter(b=>b.status==='대여'   && (b.reportRegion||'')=== rowName).length,
-    '수수료대여': rowName => beds.filter(b=>b.status==='수수료대여' && (b.agency||b.renter||'')=== rowName).length,
-    '대대여':     rowName => beds.filter(b=>b.status==='대대여' && (b.daedaeAgency||b.agency||'')=== rowName).length,
-    '일반대여':   rowName => beds.filter(b=>b.status==='일반대여').length,
-  };
-
   Object.entries(FIXED_ROWS).forEach(([gName, rows])=>{
     let gPrev=0, gInst=0, gRet=0;
     const rowData = rows.map(rowName=>{
@@ -1797,15 +1773,12 @@ function renderReport(){
       });
       const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
       const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
-      // 현재실적 = beds 실제 카운트
-      const cur = bedCurCount[gName] ? bedCurCount[gName](rowName) : prev + totalInst - totalRet;
+      const cur = prev + totalInst - totalRet;
       gPrev+=prev; gInst+=totalInst; gRet+=totalRet;
       return {rowName, prev, wData, totalInst, totalRet, cur};
     });
 
-    // 소계 현재실적도 beds 기준
-    const gCurActual = rows.reduce((acc, rowName) => acc + (bedCurCount[gName] ? bedCurCount[gName](rowName) : 0), 0);
-    const gCur = gCurActual;
+    const gCur = gPrev + gInst - gRet;
     grandPrev+=gPrev; grandInstTotal+=gInst; grandRetTotal+=gRet; grandCur+=gCur;
 
     rowData.forEach((row,i)=>{
@@ -1833,14 +1806,13 @@ function renderReport(){
   });
 
   // 합계
-  const grandCurActual = beds.filter(b=>['대여','수수료대여','대대여','일반대여'].includes(b.status)).length;
   html+=`<tr class="rpt-total" style="font-size:13px"><td colspan="2">합계</td><td><b>${grandPrev}</b></td>`;
   validWeeks.forEach(w=>{
     const wi=events.filter(e=>e._week===w).filter(isInstall).length;
     const wr=events.filter(e=>e._week===w).filter(isReturn).length;
     html+=`<td>${wi>0?'+'+wi:'-'}</td><td>${wr>0?'-'+wr:'-'}</td>`;
   });
-  html+=`<td><b>${grandCurActual}</b></td></tr>`;
+  html+=`<td><b>${grandCur}</b></td></tr>`;
   html+=`</tbody></table></div>`;
 
   // 휠체어 섹션
@@ -1864,14 +1836,9 @@ function renderReport(){
     '일반대여': h => h.status==='일반대여',
   };
 
-  const wcCurCount = {
-    '복지용구': () => wheelchairs.filter(w=>w.status==='대여').length,
-    '대대여':   () => wheelchairs.filter(w=>w.status==='대대여').length,
-    '일반대여': () => wheelchairs.filter(w=>w.status==='일반대여').length,
-  };
-
   WC_ROWS.forEach(rowName=>{
     const prev = prevData['wc_'+rowName]||0;
+    // 휠체어 이력에서 해당 구분 집계
     const wData = {};
     validWeeks.forEach(w=>{
       const we = (weeks[w]||[]).filter(e=>{
@@ -1882,8 +1849,7 @@ function renderReport(){
     });
     const totalInst = Object.values(wData).reduce((a,v)=>a+v.inst,0);
     const totalRet  = Object.values(wData).reduce((a,v)=>a+v.ret,0);
-    // 현재실적 = wheelchairs 실제 카운트
-    const cur = wcCurCount[rowName] ? wcCurCount[rowName]() : prev + totalInst - totalRet;
+    const cur = prev + totalInst - totalRet;
     wcGrandPrev+=prev; wcGrandCur+=cur;
     html+=`<tr><td style="text-align:left">${rowName}</td>`;
     html+=`<td><input type="number" value="${prev}" min="0"
@@ -1896,14 +1862,13 @@ function renderReport(){
     });
     html+=`<td><b>${cur}</b></td></tr>`;
   });
-  const wcGrandCurActual = wheelchairs.filter(w=>['대여','대대여','일반대여'].includes(w.status)).length;
   html+=`<tr class="rpt-total"><td>합계</td><td><b>${wcGrandPrev}</b></td>`;
   validWeeks.forEach(()=>html+=`<td>-</td><td>-</td>`);
-  html+=`<td><b>${wcGrandCurActual}</b></td></tr>`;
+  html+=`<td><b>${wcGrandCur}</b></td></tr>`;
   html+=`</tbody></table></div>`;
 
   // 재고
-  const depots=['탑클린/인천','시일통상/부산','명성크린케어/구미','청정종합관리/청주','용인창고'];
+  const depots=appSettings.depot||[];
   html+=`<div class="rpt-card"><div class="rpt-title">📦 침대 보관 재고</div><table class="rpt-table"><thead><tr><th>거점</th><th>보관 수량</th></tr></thead><tbody>`;
   let totalStock=0;
   depots.forEach(d=>{
